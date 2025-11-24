@@ -3,7 +3,7 @@ import Home from './Home';
 import About from './About';
 import Docs from './Docs';
 
-// SSR registry with static imports (used server-side)
+// Single source of truth - SSR registry with static imports
 export const pages: Record<string, PageConfig> = {
   '/': {
     component: Home,
@@ -22,24 +22,24 @@ export const pages: Record<string, PageConfig> = {
   },
 };
 
-// Client registry with dynamic imports (used client-side for code splitting)
-export const pagesAsync: Record<string, PageConfigAsync> = {
-  '/': {
-    componentLoader: () => import('./Home'),
-    hydrate: true,
-    componentPath: './Home',
-  },
-  '/about': {
-    componentLoader: () => import('./About'),
-    hydrate: true,
-    componentPath: './About',
-  },
-  '/docs': {
-    componentLoader: () => import('./Docs'),
-    hydrate: false,
-    componentPath: './Docs',
-  },
+// Map of component paths to dynamic imports (must be explicit for Vite)
+const componentLoaders: Record<string, () => Promise<{ default: React.ComponentType }>> = {
+  './Home': () => import('./Home'),
+  './About': () => import('./About'),
+  './Docs': () => import('./Docs'),
 };
+
+// Auto-generate async registry from pages config
+export const pagesAsync: Record<string, PageConfigAsync> = Object.fromEntries(
+  Object.entries(pages).map(([path, config]) => [
+    path,
+    {
+      componentLoader: componentLoaders[config.componentPath!],
+      hydrate: config.hydrate,
+      componentPath: config.componentPath!,
+    },
+  ])
+);
 
 export const GLOBAL_CSS_PATH = '/src/styles/global.css';
 
