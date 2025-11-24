@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global styles */
+body {
+  @apply antialiased;
+}
+
+/* Page-specific utilities that can be reused */
+.home-container,
+.about-container,
+.docs-container {
+  @apply max-w-4xl mx-auto p-8;
+}
+
+.card {
+  @apply transition-transform hover:scale-105;
+}
+
+.prose {
+  @apply text-gray-800;
+}
