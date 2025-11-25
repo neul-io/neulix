@@ -1,24 +1,21 @@
-export interface PageManifest {
-  [key: string]: {
-    file: string;
-    css?: string[];
-    imports?: string[];
-  };
+export interface ManifestChunk {
+  file: string;
+  src?: string;
+  css?: string[];
+  assets?: string[];
+  isEntry?: boolean;
+  name?: string;
+  isDynamicEntry?: boolean;
+  imports?: string[];
+  dynamicImports?: string[];
 }
 
-export interface RenderOptions {
-  hydrate?: boolean;
-  path: string;
+export interface PageManifest {
+  [key: string]: ManifestChunk;
 }
 
 export interface PageConfig {
   component: React.ComponentType;
+  entryName: string;
   hydrate: boolean;
-  componentPath?: string;
-}
-
-export interface PageConfigAsync {
-  componentLoader: () => Promise<{ default: React.ComponentType }>;
-  hydrate: boolean;
-  componentPath: string;
 }

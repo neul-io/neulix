@@ -1,20 +1,29 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import react from '@vitejs/plugin-react-swc';
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 
 export default defineConfig({
+  plugins: [react()],
   build: {
     manifest: true,
     outDir: 'dist',
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'src/client/entry-client.tsx'),
+        // Only pages that need hydration
+        home: resolve(__dirname, 'src/pages/Home.entry.tsx'),
+        about: resolve(__dirname, 'src/pages/About.entry.tsx'),
+        // SSR-only CSS (no JS output)
+        'docs-styles': resolve(__dirname, 'src/pages/Docs.css'),
       },
       output: {
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]',
+        assetFileNames: 'assets/styles-[hash].[ext]',
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+        },
       },
     },
     cssCodeSplit: true,

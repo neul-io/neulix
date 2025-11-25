@@ -9,7 +9,7 @@ export default function Home() {
       <p className="text-gray-700 mb-6">This page is hydrated with client-side JavaScript.</p>
 
       <div className="card bg-white shadow-lg rounded-lg p-6">
-        <h2 className="text-2xl font-semibold mb-4">Interactive Counter</h2>
+        <h2 className="text-2xl font-semibold mb-4">Interactive counter</h2>
         <button
           onClick={() => setCount(c => c + 1)}
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors"
