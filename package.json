@@ -6,12 +6,9 @@
     "dev": "bun run config/dev.ts",
     "build": "bun run config/build.ts",
     "start": "NODE_ENV=production bun run src/server.ts",
-    "lint": "biome lint ./",
-    "lint:fix": "biome lint ./ --write",
-    "format": "biome format ./ --write",
-    "format:check": "biome format ./",
-    "type-check": "tsc --noEmit",
-    "check": "biome check ./ && bun run type-check"
+    "check": "biome check ./ && tsc --noEmit",
+    "fix": "biome check ./ --write",
+    "docker": "docker build -t bun-ssr . && docker run -p 3001:3001 bun-ssr"
   },
   "dependencies": {
     "express": "5.1.0",
