@@ -191,6 +191,37 @@ Props are automatically serialized and passed to the client for hydration.
 
 ---
 
+## Docker
+
+A production-ready Dockerfile is included with multi-stage builds for optimal image size:
+
+```bash
+# Build and run with Docker
+bun run docker
+```
+
+The Dockerfile uses:
+- `oven/bun:1` for building
+- `oven/bun:1-slim` for production (smaller image)
+- Non-root user for security
+- Separate dependency and build stages for better caching
+
+---
+
+## Linting & Formatting
+
+Neulix includes [Biome](https://biomejs.dev) for fast linting and formatting:
+
+```bash
+# Check for issues
+bun run lint
+
+# Auto-fix issues
+bun run format
+```
+
+---
+
 ## SSR-Only vs Hydrated Pages
 
 | Type | `hydrate` | Client File | JavaScript | Use Case |
