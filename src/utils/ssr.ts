@@ -37,7 +37,7 @@ export function renderPage(entryName: string): string {
     cssTags = '<link rel="stylesheet" href="/styles.css">';
 
     if (pageConfig.hydrate) {
-      scriptTags = `<script type="module" src="/${capitalizedEntry}.entry.js"></script>`;
+      scriptTags = `<script type="module" src="/${capitalizedEntry}.client.js"></script>`;
     }
   } else if (manifest) {
     const assets = getPageAssetTags(manifest, entryName, pageConfig.hydrate);

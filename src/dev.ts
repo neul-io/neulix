@@ -44,7 +44,7 @@ async function buildClient() {
   for (const [entryName, config] of Object.entries(pages)) {
     if (config.hydrate) {
       const capitalizedEntry = entryName.charAt(0).toUpperCase() + entryName.slice(1);
-      const entryPath = resolve(process.cwd(), `src/pages/${capitalizedEntry}.entry.tsx`);
+      const entryPath = resolve(process.cwd(), `src/pages/${capitalizedEntry}.client.tsx`);
       entrypoints.push(entryPath);
     }
   }
@@ -140,14 +140,14 @@ const watcher = watch(srcDir, { recursive: true }, (eventType, filename) => {
     filename.endsWith('server.ts') ||
     filename.includes('utils/') ||
     filename.includes('api/') ||
-    (filename.includes('pages/') && !filename.endsWith('.entry.tsx') && !filename.endsWith('.css'))
+    (filename.includes('pages/') && !filename.endsWith('.client.tsx') && !filename.endsWith('.css'))
   ) {
     restartServer();
     return;
   }
 
   // Client-side files: rebuild bundles
-  if (filename.endsWith('.entry.tsx') || filename.includes('client/')) {
+  if (filename.endsWith('.client.tsx') || filename.includes('client/')) {
     scheduleClientRebuild();
   }
 

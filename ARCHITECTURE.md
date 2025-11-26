@@ -30,11 +30,11 @@ project/
 │   │
 │   ├── pages/                  # Page components and routing
 │   │   ├── Home.tsx            #   Home page React component
-│   │   ├── Home.entry.tsx      #   Home page client entry (hydrated)
+│   │   ├── Home.client.tsx     #   Home page client entry (hydrated)
 │   │   ├── Home.css            #   Home page styles (optional)
 │   │   ├── About.tsx           #   About page React component
-│   │   ├── About.entry.tsx     #   About page client entry (hydrated)
-│   │   ├── Docs.tsx            #   Docs page React component (SSR-only, no entry!)
+│   │   ├── About.client.tsx    #   About page client entry (hydrated)
+│   │   ├── Docs.tsx            #   Docs page React component (SSR-only, no .client!)
 │   │   └── registry.ts         #   Page configuration registry
 │   │
 │   ├── styles/                 # CSS source files
@@ -53,7 +53,7 @@ project/
 │   ├── manifest.json           #   Asset mapping for production
 │   ├── styles-[hash].css       #   Hashed CSS (production)
 │   ├── styles.css              #   Unhashed CSS (development)
-│   ├── Home.entry-[hash].js    #   Page entry bundles
+│   ├── Home.client-[hash].js   #   Page client bundles
 │   └── chunk-[hash].js         #   Shared chunks (React, etc.)
 │
 ├── tailwind.config.ts          # Tailwind CSS config
@@ -211,7 +211,7 @@ export function renderPage(entryName: string): string {
     cssTags = '<link rel="stylesheet" href="/styles.css">';
 
     if (pageConfig.hydrate) {
-      scriptTags = `<script type="module" src="/${capitalizedEntry}.entry.js"></script>`;
+      scriptTags = `<script type="module" src="/${capitalizedEntry}.client.js"></script>`;
     }
   } else if (manifest) {
     const assets = getPageAssetTags(manifest, entryName, pageConfig.hydrate);
@@ -305,7 +305,7 @@ export function hydrate(Component: React.ComponentType): void {
 }
 ```
 
-### src/pages/Home.entry.tsx (example entry file)
+### src/pages/Home.client.tsx (example client file)
 
 ```typescript
 import { hydrate } from '../client/hydrate';
@@ -366,7 +366,7 @@ async function buildProduction() {
   for (const [entryName, config] of Object.entries(pages)) {
     if (config.hydrate) {
       const capitalizedEntry = entryName.charAt(0).toUpperCase() + entryName.slice(1);
-      const entryPath = resolve(process.cwd(), `src/pages/${capitalizedEntry}.entry.tsx`);
+      const entryPath = resolve(process.cwd(), `src/pages/${capitalizedEntry}.client.tsx`);
       entrypoints.push(entryPath);
       entryNameMap.set(entryPath, entryName);
     }
@@ -399,7 +399,7 @@ async function buildProduction() {
 
     if (output.kind === 'entry-point') {
       const entryPath = entrypoints.find(ep => {
-        const name = basename(ep, '.entry.tsx').toLowerCase();
+        const name = basename(ep, '.client.tsx').toLowerCase();
         return fileName.toLowerCase().startsWith(name);
       });
 
@@ -481,7 +481,7 @@ async function buildClient() {
   for (const [entryName, config] of Object.entries(pages)) {
     if (config.hydrate) {
       const capitalizedEntry = entryName.charAt(0).toUpperCase() + entryName.slice(1);
-      const entryPath = resolve(process.cwd(), `src/pages/${capitalizedEntry}.entry.tsx`);
+      const entryPath = resolve(process.cwd(), `src/pages/${capitalizedEntry}.client.tsx`);
       entrypoints.push(entryPath);
     }
   }
@@ -543,7 +543,7 @@ watch(srcDir, { recursive: true }, (eventType, filename) => {
     filename.endsWith('server.ts') ||
     filename.includes('utils/') ||
     filename.includes('api/') ||
-    (filename.includes('pages/') && !filename.endsWith('.entry.tsx') && !filename.endsWith('.css'))
+    (filename.includes('pages/') && !filename.endsWith('.client.tsx') && !filename.endsWith('.css'))
   ) {
     console.log('\nFile change detected, restarting server...\n');
     startServer();
@@ -551,7 +551,7 @@ watch(srcDir, { recursive: true }, (eventType, filename) => {
   }
 
   // Client-side files: rebuild bundles
-  if (filename.endsWith('.entry.tsx') || filename.includes('client/')) {
+  if (filename.endsWith('.client.tsx') || filename.includes('client/')) {
     scheduleClientRebuild();
   }
 
@@ -585,8 +585,8 @@ console.log('\nWatching for file changes in src/...\n');
 ```
 dist/
 ├── styles.css              # Unhashed (no cache busting needed)
-├── Home.entry.js           # Unhashed entry
-├── About.entry.js
+├── Home.client.js          # Unhashed client bundle
+├── About.client.js
 └── chunk-*.js              # Shared chunks
 ```
 
@@ -595,8 +595,8 @@ dist/
 dist/
 ├── manifest.json           # Maps entry names to hashed files
 ├── styles-9de07fa6.css     # Content-hashed CSS
-├── Home.entry-jp8r3x4m.js  # Content-hashed entries
-├── About.entry-j043rfve.js
+├── Home.client-jp8r3x4m.js # Content-hashed client bundles
+├── About.client-j043rfve.js
 └── chunk-9axpccjb.js       # Shared chunk (React + hydration)
 ```
 
@@ -604,12 +604,12 @@ dist/
 ```json
 {
   "home": {
-    "js": "Home.entry-jp8r3x4m.js",
+    "js": "Home.client-jp8r3x4m.js",
     "css": "styles-9de07fa6.css",
     "imports": ["chunk-9axpccjb.js"]
   },
   "about": {
-    "js": "About.entry-j043rfve.js",
+    "js": "About.client-j043rfve.js",
     "css": "styles-9de07fa6.css",
     "imports": ["chunk-9axpccjb.js"]
   },
@@ -643,7 +643,7 @@ getPageAssetTags(manifest, 'home', true) resolves hashed filenames
 HTML returned with:
   - <link href="/styles-9de07fa6.css">
   - <link rel="modulepreload" href="/chunk-9axpccjb.js">
-  - <script src="/Home.entry-jp8r3x4m.js">
+  - <script src="/Home.client-jp8r3x4m.js">
     ↓
 Browser loads cached CSS, cached chunks
     ↓
@@ -687,7 +687,7 @@ ZERO JavaScript executed
    }
    ```
 
-2. **Create entry**: `src/pages/NewPage.entry.tsx`
+2. **Create client file**: `src/pages/NewPage.client.tsx`
    ```typescript
    import { hydrate } from '../client/hydrate';
    import NewPage from './NewPage';
@@ -720,7 +720,7 @@ ZERO JavaScript executed
 
 1. **Create component**: `src/pages/Static.tsx`
 
-2. **Add to registry** (NO entry file needed):
+2. **Add to registry** (NO .client.tsx file needed):
    ```typescript
    import Static from './Static';
 

@@ -63,7 +63,7 @@ async function buildProduction() {
   for (const [entryName, config] of Object.entries(pages)) {
     if (config.hydrate) {
       const capitalizedEntry = entryName.charAt(0).toUpperCase() + entryName.slice(1);
-      const entryPath = resolve(process.cwd(), `src/pages/${capitalizedEntry}.entry.tsx`);
+      const entryPath = resolve(process.cwd(), `src/pages/${capitalizedEntry}.client.tsx`);
       entrypoints.push(entryPath);
       entryNameMap.set(entryPath, entryName);
     }
@@ -102,7 +102,7 @@ async function buildProduction() {
     if (output.kind === 'entry-point') {
       // Find which entry this corresponds to
       const entryPath = entrypoints.find(ep => {
-        const name = basename(ep, '.entry.tsx').toLowerCase();
+        const name = basename(ep, '.client.tsx').toLowerCase();
         return fileName.toLowerCase().startsWith(name);
       });
 
