@@ -12,6 +12,10 @@
     "./cli": "./src/cli/index.ts",
     "./express": "./src/middleware/express.ts"
   },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.17",
+    "tailwindcss": "^4.1.17"
+  },
   "peerDependencies": {
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0"
