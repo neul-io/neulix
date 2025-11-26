@@ -1,7 +1,7 @@
 import type { PageConfig } from '../types';
-import Home from './Home';
 import About from './About';
 import Docs from './Docs';
+import Home from './Home';
 
 type PageInput = Omit<PageConfig, 'name'>;
 

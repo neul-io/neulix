@@ -49,15 +49,18 @@ async function buildProduction() {
 
   // Build CSS with Tailwind CLI
   console.log('Building CSS with Tailwind...');
-  const tailwindProcess = Bun.spawn([
-    'bunx',
-    'tailwindcss',
-    '-i',
-    'src/styles/input.css',
-    '-o',
-    'dist/styles.css',
-    '--minify',
-  ]);
+  const tailwindProcess = Bun.spawn(
+    ['bunx', 'tailwindcss', '-i', 'src/styles/input.css', '-o', 'dist/styles.css', '--minify'],
+    {
+      stdout: 'ignore',
+      stderr: 'ignore',
+      env: {
+        ...process.env,
+        BROWSERSLIST_IGNORE_OLD_DATA: '1',
+        NODE_NO_WARNINGS: '1',
+      },
+    }
+  );
   await tailwindProcess.exited;
 
   if (tailwindProcess.exitCode !== 0) {

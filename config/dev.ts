@@ -29,14 +29,18 @@ if (!existsSync(distPath)) {
 
 async function buildCss() {
   console.log('Building CSS...');
-  const tailwindProcess = Bun.spawn([
-    'bunx',
-    'tailwindcss',
-    '-i',
-    'src/styles/input.css',
-    '-o',
-    'dist/styles.css',
-  ]);
+  const tailwindProcess = Bun.spawn(
+    ['bunx', 'tailwindcss', '-i', 'src/styles/input.css', '-o', 'dist/styles.css'],
+    {
+      stdout: 'ignore',
+      stderr: 'ignore',
+      env: {
+        ...process.env,
+        BROWSERSLIST_IGNORE_OLD_DATA: '1',
+        NODE_NO_WARNINGS: '1',
+      },
+    }
+  );
   await tailwindProcess.exited;
 
   if (tailwindProcess.exitCode !== 0) {
@@ -160,11 +164,15 @@ const watcher = watch(srcDir, { recursive: true }, (eventType, filename) => {
     (filename.includes('pages/') && !filename.endsWith('.client.tsx') && !filename.endsWith('.css'))
   ) {
     restartServer();
-    return;
   }
 
   // Client-side files: rebuild bundles
-  if (filename.endsWith('.client.tsx') || filename.includes('client/')) {
+  // Also rebuild when page components change (they're imported by .client.tsx files)
+  if (
+    filename.endsWith('.client.tsx') ||
+    filename.includes('client/') ||
+    (filename.includes('pages/') && filename.endsWith('.tsx'))
+  ) {
     scheduleClientRebuild();
   }
 

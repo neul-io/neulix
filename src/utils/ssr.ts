@@ -1,9 +1,9 @@
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import { createElement, StrictMode } from 'react';
 import { renderToString } from 'react-dom/server';
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
-import { createHtmlTemplate, getPageAssetTags } from './render';
 import type { BuildManifest, PageConfig, RenderOptions } from '../types';
+import { createHtmlTemplate, getPageAssetTags } from './render';
 
 const isDev = process.env.NODE_ENV !== 'production';
 

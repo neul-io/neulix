@@ -1,0 +1,49 @@
+# Dependencies
+node_modules
+
+# Build output (rebuilt in Docker)
+dist
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files (should use Docker secrets or env vars)
+.env
+.env.*
+!.env.example
+
+# Documentation (not needed in image)
+*.md
+LICENSE
+ARCHITECTURE.md
+README.md
+
+# Config files not needed at runtime
+biome.json
+.editorconfig
+
+# Bun cache
+.bun
+
+# Test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__
+coverage
