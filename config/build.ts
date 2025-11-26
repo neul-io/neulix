@@ -64,18 +64,15 @@ async function buildProduction() {
     const baseName = cssFile.split('/').pop()!.replace('.css', '');
     const tempOutput = `dist/${baseName}.css`;
 
-    const tailwindProcess = spawn(
-      ['bunx', '@tailwindcss/cli', '-i', cssFile, '-o', tempOutput, '--minify'],
-      {
-        stdout: 'ignore',
-        stderr: 'ignore',
-        env: {
-          ...process.env,
-          BROWSERSLIST_IGNORE_OLD_DATA: '1',
-          NODE_NO_WARNINGS: '1',
-        },
-      }
-    );
+    const tailwindProcess = spawn(['bunx', '@tailwindcss/cli', '-i', cssFile, '-o', tempOutput, '--minify'], {
+      stdout: 'ignore',
+      stderr: 'ignore',
+      env: {
+        ...process.env,
+        BROWSERSLIST_IGNORE_OLD_DATA: '1',
+        NODE_NO_WARNINGS: '1',
+      },
+    });
     await tailwindProcess.exited;
 
     if (tailwindProcess.exitCode !== 0) {

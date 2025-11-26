@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { createElement, StrictMode } from 'react';
 import { renderToString } from 'react-dom/server';
+import { ErrorBoundary } from '../components/error-boundary';
 import type { BuildManifest, PageConfig, RenderOptions } from '../types';
 import { createHtmlTemplate, getPageAssetTags } from './render';
 
@@ -35,7 +36,11 @@ export async function renderPage<P extends Record<string, unknown> = Record<stri
   const { props, title } = options;
 
   const appHtml = renderToString(
-    createElement(StrictMode, null, createElement(page.component, (props ?? {}) as P))
+    createElement(
+      StrictMode,
+      null,
+      createElement(ErrorBoundary, null, createElement(page.component, (props ?? {}) as P))
+    )
   );
 
   let scriptTags = '';

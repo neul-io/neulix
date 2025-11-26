@@ -51,9 +51,7 @@ export function createHtmlTemplate({
   title = 'App',
   propsJson,
 }: HtmlTemplateOptions): string {
-  const propsScript = propsJson
-    ? `<script id="__PROPS__" type="application/json">${propsJson}</script>`
-    : '';
+  const propsScript = propsJson ? `<script id="__PROPS__" type="application/json">${propsJson}</script>` : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
