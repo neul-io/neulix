@@ -25,8 +25,7 @@ COPY --from=deps /app/node_modules ./node_modules
 
 # Copy source files needed for build
 COPY package.json bun.lock* ./
-COPY tsconfig.json tailwind.config.ts ./
-COPY config ./config
+COPY tsconfig.json ./
 COPY src ./src
 
 # Build the application (Tailwind CSS + client bundles)
@@ -60,6 +59,6 @@ COPY --chown=app public ./public
 
 USER app
 
-EXPOSE 3001
+EXPOSE 3000
 
-CMD ["bun", "run", "src/server.ts"]
+CMD ["bun", "run", "start"]
