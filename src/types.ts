@@ -1,21 +1,18 @@
-export interface ManifestChunk {
-  file: string;
-  src?: string;
-  css?: string[];
-  assets?: string[];
-  isEntry?: boolean;
-  name?: string;
-  isDynamicEntry?: boolean;
-  imports?: string[];
-  dynamicImports?: string[];
+export interface BuildManifest {
+  [entryName: string]: {
+    js?: string;
+    css: string;
+    imports?: string[];
+  };
 }
 
-export interface PageManifest {
-  [key: string]: ManifestChunk;
-}
-
-export interface PageConfig {
-  component: React.ComponentType;
-  entryName: string;
+export interface PageConfig<P = unknown> {
+  name: string;
+  component: React.ComponentType<P>;
   hydrate: boolean;
+}
+
+export interface RenderOptions<P = unknown> {
+  props?: P;
+  title?: string;
 }

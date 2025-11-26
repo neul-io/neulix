@@ -3,24 +3,29 @@ import Home from './Home';
 import About from './About';
 import Docs from './Docs';
 
-export const pages: Record<string, PageConfig> = {
-  '/': {
+type PageInput = Omit<PageConfig, 'name'>;
+
+function createPages<T extends Record<string, PageInput>>(
+  input: T
+): { [K in keyof T]: T[K] & { name: K } } {
+  const result = {} as { [K in keyof T]: T[K] & { name: K } };
+  for (const key of Object.keys(input) as Array<keyof T>) {
+    result[key] = { ...input[key], name: key } as T[keyof T] & { name: keyof T };
+  }
+  return result;
+}
+
+export const pages = createPages({
+  home: {
     component: Home,
-    entryName: 'home',
     hydrate: true,
   },
-  '/about': {
+  about: {
     component: About,
-    entryName: 'about',
     hydrate: true,
   },
-  '/docs': {
+  docs: {
     component: Docs,
-    entryName: 'docs',
     hydrate: false,
   },
-};
-
-export function getPageConfig(path: string): PageConfig | null {
-  return pages[path] || null;
-}
+});
