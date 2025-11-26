@@ -31,9 +31,18 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-          <h2 className="text-red-800 font-semibold">Something went wrong</h2>
-          <p className="text-red-600 mt-2">{this.state.error?.message || 'An unexpected error occurred'}</p>
+        <div
+          style={{
+            padding: '1rem',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '0.375rem',
+          }}
+        >
+          <h2 style={{ color: '#991b1b', fontWeight: 600, margin: 0 }}>Something went wrong</h2>
+          <p style={{ color: '#dc2626', marginTop: '0.5rem', marginBottom: 0 }}>
+            {this.state.error?.message || 'An unexpected error occurred'}
+          </p>
         </div>
       );
     }

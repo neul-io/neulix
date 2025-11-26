@@ -1,4 +1,4 @@
-import type { BuildManifest } from '../types';
+import type { BuildManifest, HtmlTemplateOptions } from './types';
 
 export function getPageAssetTags(
   manifest: BuildManifest,
@@ -32,15 +32,6 @@ export function getPageAssetTags(
   const scriptTags = `<script type="module" src="/${entry.js}"></script>`;
 
   return { scriptTags, cssTags, preloadTags };
-}
-
-export interface HtmlTemplateOptions {
-  appHtml: string;
-  scriptTags: string;
-  cssTags: string;
-  preloadTags?: string;
-  title?: string;
-  propsJson?: string;
 }
 
 export function createHtmlTemplate({

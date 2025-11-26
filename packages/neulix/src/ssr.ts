@@ -3,9 +3,9 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { createElement, StrictMode } from 'react';
 import { renderToString } from 'react-dom/server';
-import { ErrorBoundary } from '../components/error-boundary';
-import type { BuildManifest, PageConfig, RenderOptions } from '../types';
+import { ErrorBoundary } from './components/error-boundary';
 import { createHtmlTemplate, getPageAssetTags } from './render';
+import type { BuildManifest, PageConfig, RenderOptions } from './types';
 
 const isDev = process.env.NODE_ENV !== 'production';
 

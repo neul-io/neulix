@@ -1,8 +1,8 @@
 import express, { type Request, type Response } from 'express';
+import { renderPage } from 'neulix';
 import { join } from 'path';
 import { api } from './api';
 import { pages } from './pages/registry';
-import { renderPage } from './utils/ssr';
 
 const app = express();
 const PORT = process.env.PORT || 3001;

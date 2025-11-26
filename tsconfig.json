@@ -15,6 +15,6 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["bun-types"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  "include": ["packages/*/src/**/*", "apps/*/src/**/*", "apps/*/config/**/*"],
+  "exclude": ["node_modules", "**/dist"]
 }

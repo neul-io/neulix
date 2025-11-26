@@ -4,9 +4,6 @@ export default function Navbar() {
       <a href="/" className="hover:underline">
         Home
       </a>
-      <a href="/about" className="hover:underline">
-        About
-      </a>
       <a href="/docs" className="hover:underline">
         Docs
       </a>

@@ -1,20 +1,10 @@
 import { build, file, Glob, hash, spawn, write } from 'bun';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { basename, resolve } from 'path';
-import { pages } from '../src/pages/registry';
+import type { PageConfig } from '../types';
 
-// Find client entry file for a page using glob pattern.
-// Searches src/pages/**/*.client.tsx to support any folder structure.
-async function findClientEntry(entryName: string): Promise<string | null> {
-  const capitalizedEntry = entryName.charAt(0).toUpperCase() + entryName.slice(1);
-  const pattern = `src/pages/**/${capitalizedEntry}.client.tsx`;
-  const glob = new Glob(pattern);
-
-  for await (const file of glob.scan('.')) {
-    return resolve(process.cwd(), file);
-  }
-
-  return null;
+export interface BuildOptions {
+  pagesRegistry: string;
 }
 
 interface BunBuildOutput {
@@ -35,7 +25,27 @@ interface BuildManifest {
   };
 }
 
-async function buildProduction() {
+async function loadPages(pagesRegistry: string): Promise<Record<string, PageConfig>> {
+  const registryPath = resolve(process.cwd(), pagesRegistry);
+  const module = await import(registryPath);
+  return module.pages;
+}
+
+async function findClientEntry(entryName: string): Promise<string | null> {
+  const capitalizedEntry = entryName.charAt(0).toUpperCase() + entryName.slice(1);
+  const pattern = `src/pages/**/${capitalizedEntry}.client.tsx`;
+  const glob = new Glob(pattern);
+
+  for await (const file of glob.scan('.')) {
+    return resolve(process.cwd(), file);
+  }
+
+  return null;
+}
+
+export async function buildProduction(options: BuildOptions): Promise<void> {
+  const { pagesRegistry } = options;
+
   console.log('Building for production...\n');
 
   const distPath = resolve(process.cwd(), 'dist');
@@ -50,14 +60,12 @@ async function buildProduction() {
   // Build CSS with Tailwind CLI
   console.log('Building CSS with Tailwind...');
 
-  // Find all CSS files in src/styles/
   const cssGlob = new Glob('src/styles/*.css');
   const cssFiles: string[] = [];
-  for await (const file of cssGlob.scan('.')) {
-    cssFiles.push(file);
+  for await (const cssFile of cssGlob.scan('.')) {
+    cssFiles.push(cssFile);
   }
 
-  // Process each CSS file with Tailwind
   const cssFileNames: Record<string, string> = {};
 
   for (const cssFile of cssFiles) {
@@ -79,7 +87,6 @@ async function buildProduction() {
       throw new Error(`Tailwind CSS build failed for ${cssFile}`);
     }
 
-    // Add hash to CSS file
     const cssContent = await file(tempOutput).text();
     const cssHash = hash(cssContent).toString(16).slice(0, 8);
     const hashedFileName = `${baseName}-${cssHash}.css`;
@@ -89,10 +96,9 @@ async function buildProduction() {
     cssFileNames[baseName] = hashedFileName;
   }
 
-  // Use 'input' as the main CSS file for backward compatibility
-  const cssFileName = cssFileNames['input'] || Object.values(cssFileNames)[0];
+  const cssFileName = cssFileNames['input'] || cssFileNames['global'] || Object.values(cssFileNames)[0];
 
-  // Collect entry points for hydrated pages only
+  const pages = await loadPages(pagesRegistry);
   const entrypoints: string[] = [];
   const entryNameMap: Map<string, string> = new Map();
 
@@ -110,7 +116,6 @@ async function buildProduction() {
 
   console.log('Building client bundles...');
 
-  // Build all entries with Bun
   const result = (await build({
     entrypoints,
     outdir: 'dist',
@@ -131,7 +136,6 @@ async function buildProduction() {
     throw new Error('Build failed');
   }
 
-  // Create manifest
   const manifest: BuildManifest = {};
   const chunks: string[] = [];
 
@@ -139,7 +143,6 @@ async function buildProduction() {
     const fileName = basename(output.path);
 
     if (output.kind === 'entry-point') {
-      // Find which entry this corresponds to
       const entryPath = entrypoints.find(ep => {
         const name = basename(ep, '.client.tsx').toLowerCase();
         return fileName.toLowerCase().startsWith(name);
@@ -157,14 +160,12 @@ async function buildProduction() {
     }
   }
 
-  // Add chunks as imports to all entries
   if (chunks.length > 0) {
     for (const entryName of Object.keys(manifest)) {
       manifest[entryName].imports = chunks;
     }
   }
 
-  // Add SSR-only pages (CSS only, no JS)
   for (const [entryName, config] of Object.entries(pages)) {
     if (!config.hydrate) {
       manifest[entryName] = {
@@ -173,7 +174,6 @@ async function buildProduction() {
     }
   }
 
-  // Write manifest
   const manifestPath = resolve(distPath, 'manifest.json');
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
@@ -190,10 +190,5 @@ async function buildProduction() {
   if (chunks.length > 0) {
     console.log(`  Chunks: ${chunks.join(', ')}`);
   }
-  console.log('\nRun "bun start" to start the production server.');
+  console.log('\nRun "neulix start" to start the production server.');
 }
-
-buildProduction().catch(error => {
-  console.error('Build failed:', error);
-  process.exit(1);
-});
