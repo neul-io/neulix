@@ -9,14 +9,15 @@ This is a **Multi-Page Application (MPA)** with:
 - **React hydration** on client (per-page entry points)
 - **Shared CSS** - One Tailwind CSS file cached across all pages
 - **Per-page JS** - Each hydrated page has its own entry point and component bundle
-- **Shared vendor chunk** - React cached and reused across pages
+- **Code splitting** - Bun bundler splits shared code into chunks
 - **Optional hydration** - Pages can opt-out of JavaScript entirely (SSR-only)
-- **SWC compilation** - Fast React transforms via @vitejs/plugin-react-swc
+- **Bun bundler** - Native bundling without Vite or Webpack
+- **Tailwind CLI** - Direct CSS compilation with unused class removal
 
 ## Repository File Structure
 
 ```
-test-vite-ssr/
+bun-ssr/
 ├── public/                     # Static assets (served as-is)
 │   └── favicon.svg
 ├── src/
@@ -29,14 +30,14 @@ test-vite-ssr/
 │   │
 │   ├── pages/                  # Page components and routing
 │   │   ├── Home.tsx            #   Home page React component
-│   │   ├── Home.css            #   Home page Tailwind styles
 │   │   ├── Home.entry.tsx      #   Home page client entry (hydrated)
 │   │   ├── About.tsx           #   About page React component
-│   │   ├── About.css           #   About page Tailwind styles
 │   │   ├── About.entry.tsx     #   About page client entry (hydrated)
-│   │   ├── Docs.tsx            #   Docs page React component
-│   │   ├── Docs.css            #   Docs page Tailwind styles (SSR-only, no entry)
+│   │   ├── Docs.tsx            #   Docs page React component (SSR-only)
 │   │   └── registry.ts         #   Route → PageConfig mapping
+│   │
+│   ├── styles/                 # CSS source files
+│   │   └── input.css           #   Tailwind entry point
 │   │
 │   ├── utils/                  # Shared utilities
 │   │   ├── handler.ts          #   Express request handler factory
@@ -44,11 +45,10 @@ test-vite-ssr/
 │   │   └── render.ts           #   HTML template, manifest parsing
 │   │
 │   ├── server.ts               # Express app setup and routing
-│   ├── dev.ts                  # Development file watcher
+│   ├── dev.ts                  # Development watcher (Bun + Tailwind)
 │   ├── build.ts                # Production build script
 │   └── types.ts                # TypeScript interfaces
 │
-├── vite.config.ts              # Vite bundler config (entries, chunks)
 ├── tailwind.config.ts          # Tailwind CSS config
 ├── tsconfig.json               # TypeScript config
 └── package.json                # Dependencies and scripts
@@ -61,22 +61,21 @@ test-vite-ssr/
 | `src/api/` | Server | REST API endpoints, Express routers |
 | `src/client/` | Browser | Client-only code, hydration utilities |
 | `src/pages/` | Both | React components (SSR + hydrate), routing |
+| `src/styles/` | Build | Tailwind CSS source |
 | `src/utils/` | Server | SSR rendering, HTML generation |
 | `public/` | Browser | Static assets served unchanged |
-| `dist/` | Browser | Vite build output (production only) |
+| `dist/` | Browser | Build output (production only) |
 
 ## Build Output
 
 ```
 dist/
-├── .vite/
-│   └── manifest.json           # Asset mapping
+├── manifest.json               # Asset mapping (entry → files)
 └── assets/
-    ├── styles-[hash].css       # Shared Tailwind CSS (~7KB, cached)
-    ├── vendor-[hash].js        # React + ReactDOM (~140KB, cached)
-    ├── hydrate-[hash].js       # Shared hydration logic (~2KB)
-    ├── home-[hash].js          # Home component (~1KB)
-    └── about-[hash].js         # About component (~1KB)
+    ├── styles-[hash].css       # Shared Tailwind CSS (all pages)
+    ├── Home.entry-[hash].js    # Home page entry
+    ├── About.entry-[hash].js   # About page entry
+    └── chunk-[hash].js         # Shared code (React, hydrate, etc.)
 ```
 
 **Note**: SSR-only pages (like Docs) have no JS output - only CSS.
@@ -85,47 +84,58 @@ dist/
 
 ## Key Design Decisions
 
-### 1. Shared CSS File
+### 1. Bun Bundler (No Vite)
 
-**Decision**: One CSS file for all pages instead of per-page CSS.
+**Decision**: Use Bun's native bundler instead of Vite.
 
 **How it works**:
-- Tailwind scans all source files and generates one CSS bundle
-- Vite deduplicates identical CSS across entries
-- Result: `styles-[hash].css` shared by all pages
+- `Bun.build()` compiles all entry points
+- Code splitting enabled via `splitting: true`
+- React and shared code extracted to chunks automatically
+
+**Benefits**:
+- Zero npm dependencies for bundling
+- Faster builds (native speed)
+- Simpler configuration
+
+### 2. Tailwind CLI (No PostCSS)
+
+**Decision**: Use Tailwind CLI directly instead of PostCSS plugin.
+
+**How it works**:
+- `bunx tailwindcss -i src/styles/input.css -o dist/assets/styles.css`
+- Scans all `.tsx` files for classes
+- Removes unused classes automatically
+- Single CSS file for all pages
+
+**Dev mode**: `--watch` flag for live updates
+**Prod mode**: `--minify` flag for optimization
+
+### 3. Shared CSS File
+
+**Decision**: One CSS file for all pages instead of per-page CSS.
 
 **Trade-off**:
 - ✅ CSS downloaded once, cached for all pages
 - ✅ No CSS download on page navigation
-- ❌ First load includes all classes (~7KB gzipped: ~2KB)
+- ❌ First load includes all classes
 
-### 2. SSR-Only Pages
+### 4. SSR-Only Pages
 
 **Decision**: Pages with `hydrate: false` load zero JavaScript.
 
 **How it works**:
-- SSR-only pages only have a `.css` file as Vite input (no `.entry.tsx`)
-- Manifest points directly to CSS file
-- No JS tags included in HTML
+- SSR-only pages don't have `.entry.tsx` files
+- Build script skips them in entrypoints
+- Manifest only includes CSS path
+- No JS tags in HTML output
 
-**Vite config**:
-```typescript
-input: {
-  // Hydrated pages
-  home: resolve(__dirname, 'src/pages/Home.entry.tsx'),
-  about: resolve(__dirname, 'src/pages/About.entry.tsx'),
-  // SSR-only (CSS only, no JS)
-  'docs-styles': resolve(__dirname, 'src/pages/Docs.css'),
-}
-```
-
-### 3. Shared Hydration Utility
+### 5. Shared Hydration Utility
 
 **Decision**: Centralized hydration with StrictMode.
 
 **File**: `src/client/hydrate.tsx`
 ```typescript
-import 'vite/modulepreload-polyfill';
 import { StrictMode } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 
@@ -141,12 +151,11 @@ export function hydrate(Component: React.ComponentType): void {
 ```typescript
 import { hydrate } from '../client/hydrate';
 import Home from './Home';
-import './Home.css';
 
 hydrate(Home);
 ```
 
-### 4. Clean Server Architecture
+### 6. Clean Server Architecture
 
 **Decision**: Separate concerns into focused modules.
 
@@ -165,6 +174,9 @@ hydrate(Home);
 **Purpose**: Express HTTP server (routing only)
 
 ```typescript
+// Static assets
+app.use('/assets', express.static(join(process.cwd(), 'dist/assets')));
+
 // API routes
 app.use('/api', api);
 
@@ -200,31 +212,41 @@ export const pages: Record<string, PageConfig> = {
 };
 ```
 
+### src/build.ts
+**Purpose**: Production build with Bun bundler + Tailwind CLI
+
+**Steps**:
+1. Clean dist folder
+2. Run Tailwind CLI with `--minify`
+3. Add content hash to CSS filename
+4. Collect hydrated page entrypoints from registry
+5. Run `Bun.build()` with code splitting
+6. Generate manifest.json mapping entries to assets
+
+### src/dev.ts
+**Purpose**: Development watcher
+
+**Features**:
+- Runs Tailwind CLI in watch mode
+- Builds client bundles with inline sourcemaps
+- Watches src/ for file changes
+- Restarts server on server-side changes
+- Rebuilds client on entry file changes
+
 ### src/utils/ssr.ts
 **Purpose**: Server-side rendering with asset resolution
 
 - Uses `React.createElement` (no JSX in .ts file)
 - Wraps components in StrictMode
-- Handles dev mode (Vite HMR preamble) vs production (manifest)
-- Returns complete HTML string
+- Dev mode: uses unversioned filenames
+- Prod mode: reads manifest for hashed filenames
 
 ### src/utils/render.ts
 **Purpose**: Manifest parsing and HTML template
 
 **Key functions**:
 - `getPageAssetTags(manifest, entryName, hydrate)` - Resolves CSS/JS from manifest
-- `collectCss()` - Recursively collects CSS from imports
-- `collectModulePreloads()` - Generates modulepreload hints
 - `createHtmlTemplate()` - Builds final HTML document
-
-### src/api/index.ts
-**Purpose**: Express router for API endpoints
-
-```typescript
-const api = Router();
-api.get('/hello', hello);
-export { api };
-```
 
 ---
 
@@ -243,13 +265,12 @@ getPageAssetTags(manifest, 'home', true)
     ↓
 HTML with:
   - <link href="/assets/styles-[hash].css">
-  - <link rel="modulepreload" href="/assets/hydrate-[hash].js">
-  - <link rel="modulepreload" href="/assets/vendor-[hash].js">
-  - <script src="/assets/home-[hash].js">
+  - <link rel="modulepreload" href="/assets/chunk-[hash].js">
+  - <script src="/assets/Home.entry-[hash].js">
     ↓
-Browser: CSS cached, vendor cached, hydrate cached
+Browser: CSS cached, chunks cached
     ↓
-Only home.js downloaded on subsequent visits
+Only entry JS downloaded on subsequent page visits
 ```
 
 ### SSR-Only Page (Production)
@@ -275,67 +296,23 @@ Zero JavaScript executed
 
 ---
 
-## Performance Characteristics
-
-### Bundle Sizes
-
-```
-styles-[hash].css     7.20 KB (gzip: 1.98 KB) - Shared CSS
-vendor-[hash].js    140.74 KB (gzip: 45.21 KB) - React (cached)
-hydrate-[hash].js     1.79 KB (gzip: 0.99 KB) - Shared hydration
-home-[hash].js        0.97 KB (gzip: 0.50 KB) - Home component
-about-[hash].js       1.30 KB (gzip: 0.59 KB) - About component
-```
-
-### Load Behavior
-
-**First Visit to Home**:
-- styles.css: 2 KB (cached)
-- vendor.js: 45 KB (cached)
-- hydrate.js: 1 KB (cached)
-- home.js: 0.5 KB
-- **Total: ~49 KB**
-
-**Navigate to About**:
-- All cached except about.js
-- **Total: ~0.6 KB**
-
-**Visit Docs (SSR-only)**:
-- styles.css: 0 KB (cached)
-- **Total: 0 KB** (just HTML)
-
----
-
 ## Adding a New Hydrated Page
 
 1. **Create component**: `src/pages/NewPage.tsx`
 
-2. **Create CSS**: `src/pages/NewPage.css`
-   ```css
-   @tailwind base;
-   @tailwind components;
-   @tailwind utilities;
-   ```
-
-3. **Create entry**: `src/pages/NewPage.entry.tsx`
+2. **Create entry**: `src/pages/NewPage.entry.tsx`
    ```typescript
    import { hydrate } from '../client/hydrate';
    import NewPage from './NewPage';
-   import './NewPage.css';
 
    hydrate(NewPage);
    ```
 
-4. **Add to Vite config** (`vite.config.ts`):
+3. **Add to registry** (`src/pages/registry.ts`):
    ```typescript
-   input: {
-     // ...existing entries
-     newpage: resolve(__dirname, 'src/pages/NewPage.entry.tsx'),
-   }
-   ```
+   import NewPage from './NewPage';
 
-5. **Add to registry** (`src/pages/registry.ts`):
-   ```typescript
+   // In pages object:
    '/new-page': {
      component: NewPage,
      entryName: 'newpage',
@@ -343,27 +320,17 @@ about-[hash].js       1.30 KB (gzip: 0.59 KB) - About component
    },
    ```
 
+That's it! The build script automatically discovers entries from the registry.
+
 ## Adding an SSR-Only Page
 
 1. **Create component**: `src/pages/Static.tsx`
 
-2. **Create CSS**: `src/pages/Static.css`
-   ```css
-   @tailwind base;
-   @tailwind components;
-   @tailwind utilities;
-   ```
-
-3. **Add CSS to Vite config** (no entry file needed):
+2. **Add to registry** (no entry file needed):
    ```typescript
-   input: {
-     // ...existing entries
-     'static-styles': resolve(__dirname, 'src/pages/Static.css'),
-   }
-   ```
+   import Static from './Static';
 
-4. **Add to registry**:
-   ```typescript
+   // In pages object:
    '/static': {
      component: Static,
      entryName: 'static',
@@ -373,11 +340,20 @@ about-[hash].js       1.30 KB (gzip: 0.59 KB) - About component
 
 ---
 
+## Scripts
+
+| Script | Command | Description |
+|--------|---------|-------------|
+| `dev` | `bun run src/dev.ts` | Start dev server with watch |
+| `build` | `bun run src/build.ts` | Production build |
+| `start` | `NODE_ENV=production bun run src/server.ts` | Start production server |
+
+---
+
 ## Tech Stack
 
-- **Bun** - Runtime (native TypeScript/JSX)
+- **Bun** - Runtime + bundler (native TypeScript/JSX)
 - **Express** - HTTP server
-- **Vite + SWC** - Build tool with fast React compilation
 - **React 18** - UI library (SSR + hydration)
-- **Tailwind** - CSS framework
+- **Tailwind CLI** - CSS framework with JIT compilation
 - **TypeScript** - Type safety

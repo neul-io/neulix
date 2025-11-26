@@ -4,23 +4,19 @@ import About from './About';
 import Docs from './Docs';
 
 export const pages: Record<string, PageConfig> = {
-  '/': {
+  home: {
     component: Home,
-    entryName: 'home',
+    url: '/',
     hydrate: true,
   },
-  '/about': {
+  about: {
     component: About,
-    entryName: 'about',
+    url: '/about',
     hydrate: true,
   },
-  '/docs': {
+  docs: {
     component: Docs,
-    entryName: 'docs',
+    url: '/docs',
     hydrate: false,
   },
 };
-
-export function getPageConfig(path: string): PageConfig | null {
-  return pages[path] || null;
-}
