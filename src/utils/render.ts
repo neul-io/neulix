@@ -34,23 +34,39 @@ export function getPageAssetTags(
   return { scriptTags, cssTags, preloadTags };
 }
 
-export function createHtmlTemplate(
-  appHtml: string,
-  scriptTags: string,
-  cssTags: string,
-  preloadTags: string = ''
-): string {
+export interface HtmlTemplateOptions {
+  appHtml: string;
+  scriptTags: string;
+  cssTags: string;
+  preloadTags?: string;
+  title?: string;
+  propsJson?: string;
+}
+
+export function createHtmlTemplate({
+  appHtml,
+  scriptTags,
+  cssTags,
+  preloadTags = '',
+  title = 'App',
+  propsJson,
+}: HtmlTemplateOptions): string {
+  const propsScript = propsJson
+    ? `<script id="__PROPS__" type="application/json">${propsJson}</script>`
+    : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bun SSR</title>
+    <title>${title}</title>
     ${cssTags}
     ${preloadTags}
   </head>
   <body>
     <div id="root">${appHtml}</div>
+    ${propsScript}
     ${scriptTags}
   </body>
 </html>`;

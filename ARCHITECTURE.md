@@ -13,6 +13,10 @@ This is a **Multi-Page Application (MPA)** with:
 - **Code splitting** - Bun bundler extracts shared code (React) into chunks
 - **Bun bundler** - Native bundling without Vite or Webpack
 - **Tailwind CLI** - Direct CSS compilation with unused class removal
+- **Server-side props** - Pass data to components with automatic client serialization
+- **Dynamic titles** - Set page titles from server routes
+
+---
 
 ## Repository File Structure
 
@@ -61,6 +65,8 @@ project/
 └── package.json                # Dependencies and scripts
 ```
 
+---
+
 ## Folder Responsibilities
 
 | Folder | Runs On | Purpose |
@@ -75,507 +81,259 @@ project/
 
 ---
 
-## Key Files
+## Key Files - Detailed Breakdown
 
 ### src/types.ts
 
-```typescript
-export interface BuildManifest {
-  [entryName: string]: {
-    js?: string;
-    css: string;
-    imports?: string[];
-  };
-}
+**Purpose**: Central TypeScript definitions for the entire application.
 
-export interface PageConfig {
-  component: React.ComponentType;
-  url: string;
-  hydrate: boolean;
-}
-```
+**Exports**:
+
+| Interface | Description |
+|-----------|-------------|
+| `BuildManifest` | Maps entry names to their hashed JS/CSS files and chunk imports |
+| `PageConfig<P>` | Page configuration with generic props type. Contains: `name`, `component`, `url`, `hydrate` |
+| `RenderOptions<P>` | Options passed to `renderPage()`. Contains: `props?`, `title?` |
+
+**Key Details**:
+- `PageConfig.name` is auto-injected by `createPages()` helper - don't set manually
+- `PageConfig.hydrate: boolean` controls whether page gets client-side JS
+- `RenderOptions.props` is serialized to JSON for client hydration (only if `hydrate: true`)
+- `RenderOptions.title` sets the `<title>` tag, defaults to "App"
+
+---
 
 ### src/pages/registry.ts
 
-The registry uses **entry name as key** with `url` and `hydrate` properties:
+**Purpose**: Central registry of all pages with TypeScript autocomplete support.
 
-```typescript
-import type { PageConfig } from '../types';
-import Home from './Home';
-import About from './About';
-import Docs from './Docs';
+**Key Concepts**:
 
-export const pages: Record<string, PageConfig> = {
-  home: {
-    component: Home,
-    url: '/',
-    hydrate: true,
-  },
-  about: {
-    component: About,
-    url: '/about',
-    hydrate: true,
-  },
-  docs: {
-    component: Docs,
-    url: '/docs',
-    hydrate: false,  // SSR-only, zero JS
-  },
-};
+1. **`createPages()` helper**: A generic function that:
+   - Takes an object where keys are page names (`home`, `about`, `docs`)
+   - Auto-injects `name` property from each key
+   - Preserves literal types for autocomplete (`pages.home` not `pages[string]`)
+   - Runs once at module load (~0.001ms)
+
+2. **Page configuration shape**:
+   - `component`: The React component to render
+   - `url`: The URL pattern (for documentation; routes defined in server.ts)
+   - `hydrate`: `true` = needs `.client.tsx` file, `false` = SSR-only
+
+**Naming Convention**:
+- Entry key: lowercase (`home`, `about`, `docs`)
+- Component file: PascalCase (`Home.tsx`, `About.tsx`)
+- Client file: PascalCase + `.client.tsx` (`Home.client.tsx`)
+
+**Example Structure**:
 ```
+pages = {
+  home:  { component: Home,  url: '/',      hydrate: true  },
+  about: { component: About, url: '/about', hydrate: true  },
+  docs:  { component: Docs,  url: '/docs',  hydrate: false },
+}
+```
+
+After `createPages()`, each entry gains a `name` property matching its key.
+
+---
 
 ### src/server.ts
 
-Routes are **explicitly defined** (not iterated from registry for security):
+**Purpose**: Express application with explicit route definitions.
 
-```typescript
-import express, { type Request, type Response } from 'express';
-import { join } from 'path';
-import { renderPage } from './utils/ssr';
-import { api } from './api';
+**Key Sections**:
 
-const app = express();
-const PORT = process.env.PORT || 3001;
-const isDev = process.env.NODE_ENV !== 'production';
+1. **Static asset serving**: Serves `dist/` and `public/` directories
+2. **API mounting**: Mounts `/api` router from `src/api/`
+3. **Page routes**: Explicitly defined routes calling `renderPage()`
+4. **404 handler**: Catches unmatched routes
 
-// Serve static assets
-app.use(express.static(join(process.cwd(), 'dist')));
-app.use(express.static(join(process.cwd(), 'public')));
-
-// API routes
-app.use('/api', api);
-
-// Page routes - EXPLICITLY DEFINED (security best practice)
-app.get('/', (_req: Request, res: Response) => {
-  res.send(renderPage('home'));
-});
-
-app.get('/about', (_req: Request, res: Response) => {
-  res.send(renderPage('about'));
-});
-
-app.get('/docs', (_req: Request, res: Response) => {
-  res.send(renderPage('docs'));
-});
-
-// 404 handler
-app.use((_req: Request, res: Response) => {
-  res.status(404).send('Page not found');
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-  console.log(`Environment: ${isDev ? 'development' : 'production'}`);
-});
+**Route Definition Pattern**:
 ```
+app.get(url, handler) → res.send(renderPage(pages.xxx, options?))
+```
+
+**RenderOptions Usage**:
+
+| Scenario | Call |
+|----------|------|
+| Static page, default title | `renderPage(pages.home)` |
+| Static page, custom title | `renderPage(pages.home, { title: 'Home' })` |
+| Dynamic page with data | `renderPage(pages.project, { props: { project }, title: project.name })` |
+
+**Security Note**: Routes are explicitly defined, NOT iterated from registry. This prevents unintended route exposure.
+
+---
 
 ### src/utils/ssr.ts
 
-```typescript
-import { createElement, StrictMode } from 'react';
-import { renderToString } from 'react-dom/server';
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
-import { createHtmlTemplate, getPageAssetTags } from './render';
-import { pages } from '../pages/registry';
-import type { BuildManifest } from '../types';
+**Purpose**: Server-side rendering with asset resolution and props serialization.
 
-const isDev = process.env.NODE_ENV !== 'production';
+**Main Export**: `renderPage<P>(page, options?)`
 
-// Load manifest once at startup in production
-let manifest: BuildManifest | undefined;
-if (!isDev) {
-  const manifestPath = join(process.cwd(), 'dist/manifest.json');
-  if (existsSync(manifestPath)) {
-    manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
-  }
-}
+**Function Flow**:
 
-export function renderPage(entryName: string): string {
-  const pageConfig = pages[entryName];
-  if (!pageConfig) {
-    throw new Error(`Page not found: ${entryName}`);
-  }
+1. Extract `props` and `title` from options
+2. Render component to HTML string via `renderToString()`
+3. Resolve asset tags based on environment:
+   - **Dev**: Hardcoded paths (`/styles.css`, `/{Name}.client.js`)
+   - **Prod**: Read from `manifest.json` for hashed filenames
+4. Serialize props to JSON (only if `hydrate: true` AND props exist)
+5. Generate full HTML document via `createHtmlTemplate()`
 
-  const appHtml = renderToString(
-    createElement(StrictMode, null, createElement(pageConfig.component))
-  );
+**Asset Resolution**:
 
-  let scriptTags = '';
-  let cssTags = '';
-  let preloadTags = '';
+| Environment | CSS | JS | Chunks |
+|-------------|-----|----|----|
+| Development | `/styles.css` | `/{Name}.client.js` | N/A |
+| Production | From manifest | From manifest | Modulepreload hints |
 
-  const capitalizedEntry = entryName.charAt(0).toUpperCase() + entryName.slice(1);
+**Props Serialization**:
+- Props are JSON-stringified into `<script id="__PROPS__" type="application/json">`
+- Only serialized when `page.hydrate === true` AND `props` is provided
+- SSR-only pages never serialize props (no client to read them)
 
-  if (isDev) {
-    cssTags = '<link rel="stylesheet" href="/styles.css">';
-
-    if (pageConfig.hydrate) {
-      scriptTags = `<script type="module" src="/${capitalizedEntry}.client.js"></script>`;
-    }
-  } else if (manifest) {
-    const assets = getPageAssetTags(manifest, entryName, pageConfig.hydrate);
-    cssTags = assets.cssTags;
-    preloadTags = assets.preloadTags;
-    scriptTags = assets.scriptTags;
-  }
-
-  return createHtmlTemplate(appHtml, scriptTags, cssTags, preloadTags);
-}
-```
+---
 
 ### src/utils/render.ts
 
-```typescript
-import type { BuildManifest } from '../types';
+**Purpose**: HTML template generation and manifest parsing.
 
-export function getPageAssetTags(
-  manifest: BuildManifest,
-  entryName: string,
-  hydrate: boolean
-): { cssTags: string; preloadTags: string; scriptTags: string } {
-  const entry = manifest[entryName];
-  if (!entry) {
-    return { cssTags: '', preloadTags: '', scriptTags: '' };
-  }
+**Exports**:
 
-  const cssTags = `<link rel="stylesheet" href="/${entry.css}">`;
+1. **`getPageAssetTags(manifest, entryName, hydrate)`**
+   - Looks up entry in manifest
+   - Returns `{ cssTags, preloadTags, scriptTags }`
+   - If `hydrate: false`, returns only CSS tags
 
-  if (!hydrate) {
-    return { cssTags, preloadTags: '', scriptTags: '' };
-  }
+2. **`createHtmlTemplate(options)`**
+   - Generates full HTML document
+   - Accepts: `appHtml`, `scriptTags`, `cssTags`, `preloadTags`, `title`, `propsJson`
 
-  let preloadTags = '';
-  let scriptTags = '';
-
-  // Preload chunks
-  if (entry.imports) {
-    preloadTags = entry.imports
-      .map(chunk => `<link rel="modulepreload" href="/${chunk}">`)
-      .join('\n    ');
-  }
-
-  // Entry script
-  if (entry.js) {
-    scriptTags = `<script type="module" src="/${entry.js}"></script>`;
-  }
-
-  return { cssTags, preloadTags, scriptTags };
-}
-
-export function createHtmlTemplate(
-  appHtml: string,
-  scriptTags: string,
-  cssTags: string,
-  preloadTags: string
-): string {
-  return `<!DOCTYPE html>
+**HTML Structure Generated**:
+```
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App</title>
-    ${cssTags}
-    ${preloadTags}
+    <meta name="viewport" ...>
+    <title>{title}</title>
+    {cssTags}
+    {preloadTags}
   </head>
   <body>
-    <div id="root">${appHtml}</div>
-    ${scriptTags}
+    <div id="root">{appHtml}</div>
+    {propsScript}     <!-- Only if propsJson provided -->
+    {scriptTags}
   </body>
-</html>`;
-}
+</html>
 ```
+
+---
 
 ### src/client/hydrate.tsx
 
-```typescript
-import { StrictMode } from 'react';
-import { hydrateRoot } from 'react-dom/client';
+**Purpose**: Client-side hydration utility that reads server props.
 
-export function hydrate(Component: React.ComponentType): void {
-  const root = document.getElementById('root');
-  if (root) {
-    hydrateRoot(
-      root,
-      <StrictMode>
-        <Component />
-      </StrictMode>
-    );
-  }
-}
+**Main Export**: `hydrate<P>(Component)`
+
+**Function Flow**:
+
+1. Find `<script id="__PROPS__">` in DOM
+2. Parse JSON content as props (or undefined if not found)
+3. Call `hydrateRoot()` with component and props
+4. Wrap in `StrictMode` for consistency with server
+
+**Props Flow**:
+```
+Server: renderPage(page, { props })
+  → JSON.stringify(props)
+  → <script id="__PROPS__">
+
+Client: hydrate(Component)
+  → getElementById('__PROPS__')
+  → JSON.parse()
+  → hydrateRoot(root, <Component {...props} />)
 ```
 
-### src/pages/Home.client.tsx (example client file)
+---
 
-```typescript
-import { hydrate } from '../client/hydrate';
-import Home from './Home';
+### src/pages/*.client.tsx
 
-hydrate(Home);
-```
+**Purpose**: Client-side entry point for hydrated pages.
+
+**Pattern**: Each hydrated page needs a `.client.tsx` file that:
+1. Imports `hydrate` from `../client/hydrate`
+2. Imports the page component
+3. Calls `hydrate(Component)`
+
+**File Naming**:
+- Component: `Home.tsx`
+- Client entry: `Home.client.tsx`
+- Registry key: `home`
+
+**SSR-only pages** (like `Docs.tsx`) do NOT need a `.client.tsx` file.
+
+---
 
 ### src/build.ts
 
-Production build with content-hashed filenames:
+**Purpose**: Production build script that creates optimized, hashed assets.
 
-```typescript
-import { rmSync, existsSync, mkdirSync, writeFileSync } from 'fs';
-import { resolve, basename } from 'path';
-import { pages } from './pages/registry';
+**Build Steps**:
 
-interface BuildManifest {
-  [entryName: string]: {
-    js?: string;
-    css: string;
-    imports?: string[];
-  };
-}
+1. Clean `dist/` folder
+2. Run Tailwind CLI with `--minify`
+3. Hash CSS content → `styles-{hash}.css`
+4. Collect entry points from registry (hydrated pages only)
+5. Run `Bun.build()` with code splitting
+6. Generate `manifest.json` mapping entry names to hashed files
+7. Add SSR-only pages to manifest (CSS only, no JS)
 
-async function buildProduction() {
-  console.log('Building for production...\n');
+**Bun.build() Configuration**:
+- `splitting: true` - Extract shared code (React) into chunks
+- `minify: true` - Minify output
+- `naming: '[name]-[hash].[ext]'` - Content-hashed filenames
+- `target: 'browser'` - Browser-compatible output
+- `format: 'esm'` - ES modules
 
-  const distPath = resolve(process.cwd(), 'dist');
-
-  // Clean dist folder
-  if (existsSync(distPath)) {
-    rmSync(distPath, { recursive: true, force: true });
-  }
-  mkdirSync(distPath, { recursive: true });
-
-  // Build CSS with Tailwind CLI (minified)
-  console.log('Building CSS with Tailwind...');
-  const tailwindProcess = Bun.spawn([
-    'bunx', 'tailwindcss',
-    '-i', 'src/styles/input.css',
-    '-o', 'dist/styles.css',
-    '--minify',
-  ]);
-  await tailwindProcess.exited;
-
-  // Add content hash to CSS filename for cache busting
-  const cssContent = await Bun.file('dist/styles.css').text();
-  const cssHash = Bun.hash(cssContent).toString(16).slice(0, 8);
-  const cssFileName = `styles-${cssHash}.css`;
-  await Bun.write(`dist/${cssFileName}`, cssContent);
-  rmSync('dist/styles.css');
-
-  // Collect entry points for hydrated pages only
-  const entrypoints: string[] = [];
-  const entryNameMap: Map<string, string> = new Map();
-
-  for (const [entryName, config] of Object.entries(pages)) {
-    if (config.hydrate) {
-      const capitalizedEntry = entryName.charAt(0).toUpperCase() + entryName.slice(1);
-      const entryPath = resolve(process.cwd(), `src/pages/${capitalizedEntry}.client.tsx`);
-      entrypoints.push(entryPath);
-      entryNameMap.set(entryPath, entryName);
-    }
-  }
-
-  console.log('Building client bundles...');
-
-  // Build all entries with Bun bundler
-  const result = await Bun.build({
-    entrypoints,
-    outdir: 'dist',
-    naming: '[name]-[hash].[ext]',
-    splitting: true,        // Enable code splitting (React goes to chunk)
-    minify: true,
-    target: 'browser',
-    format: 'esm',
-    sourcemap: 'none',
-  });
-
-  if (!result.success) {
-    throw new Error('Build failed');
-  }
-
-  // Generate manifest
-  const manifest: BuildManifest = {};
-  const chunks: string[] = [];
-
-  for (const output of result.outputs) {
-    const fileName = basename(output.path);
-
-    if (output.kind === 'entry-point') {
-      const entryPath = entrypoints.find(ep => {
-        const name = basename(ep, '.client.tsx').toLowerCase();
-        return fileName.toLowerCase().startsWith(name);
-      });
-
-      if (entryPath) {
-        const entryName = entryNameMap.get(entryPath)!;
-        manifest[entryName] = {
-          js: fileName,
-          css: cssFileName,
-        };
-      }
-    } else if (output.kind === 'chunk') {
-      chunks.push(fileName);
-    }
-  }
-
-  // Add chunks as imports to all entries
-  if (chunks.length > 0) {
-    for (const entryName of Object.keys(manifest)) {
-      manifest[entryName].imports = chunks;
-    }
-  }
-
-  // Add SSR-only pages (CSS only, no JS)
-  for (const [entryName, config] of Object.entries(pages)) {
-    if (!config.hydrate) {
-      manifest[entryName] = {
-        css: cssFileName,
-      };
-    }
-  }
-
-  // Write manifest
-  writeFileSync(resolve(distPath, 'manifest.json'), JSON.stringify(manifest, null, 2));
-
-  console.log('\nBuild complete!');
-}
-
-buildProduction();
+**Manifest Structure**:
 ```
+{
+  "home": {
+    "js": "Home.client-abc123.js",
+    "css": "styles-def456.css",
+    "imports": ["chunk-xyz789.js"]
+  },
+  "docs": {
+    "css": "styles-def456.css"
+    // No "js" or "imports" - SSR only
+  }
+}
+```
+
+---
 
 ### src/dev.ts
 
-Development watcher with file change detection:
+**Purpose**: Development environment with file watching and hot rebuilds.
 
-```typescript
-import { watch, existsSync, mkdirSync } from 'fs';
-import { spawn, type Subprocess } from 'bun';
-import { join, resolve } from 'path';
-import { pages } from './pages/registry';
+**Capabilities**:
 
-let serverProcess: Subprocess | null = null;
-let buildInProgress = false;
+| File Change | Action |
+|-------------|--------|
+| `*.css`, `*.tsx` | Rebuild Tailwind CSS |
+| `*.client.tsx`, `client/*` | Rebuild client bundles |
+| `server.ts`, `utils/*`, `api/*` | Restart server |
+| `registry.ts` | Restart server + rebuild client |
+| Page components (not `.client.tsx`) | Restart server |
 
-const distPath = resolve(process.cwd(), 'dist');
-
-if (!existsSync(distPath)) {
-  mkdirSync(distPath, { recursive: true });
-}
-
-async function buildCss() {
-  console.log('Building CSS...');
-  const tailwindProcess = Bun.spawn([
-    'bunx', 'tailwindcss',
-    '-i', 'src/styles/input.css',
-    '-o', 'dist/styles.css',
-  ]);
-  await tailwindProcess.exited;
-  console.log('CSS built');
-}
-
-async function buildClient() {
-  if (buildInProgress) return;
-  buildInProgress = true;
-
-  console.log('Building client bundles...');
-
-  const entrypoints: string[] = [];
-
-  for (const [entryName, config] of Object.entries(pages)) {
-    if (config.hydrate) {
-      const capitalizedEntry = entryName.charAt(0).toUpperCase() + entryName.slice(1);
-      const entryPath = resolve(process.cwd(), `src/pages/${capitalizedEntry}.client.tsx`);
-      entrypoints.push(entryPath);
-    }
-  }
-
-  await Bun.build({
-    entrypoints,
-    outdir: 'dist',
-    naming: '[name].js',
-    splitting: true,
-    minify: false,
-    target: 'browser',
-    format: 'esm',
-    sourcemap: 'inline',
-  });
-
-  console.log('Client bundles rebuilt');
-  buildInProgress = false;
-}
-
-function startServer() {
-  if (serverProcess) serverProcess.kill();
-
-  console.log('\nStarting server...\n');
-
-  serverProcess = spawn({
-    cmd: ['bun', 'run', 'src/server.ts'],
-    stdout: 'inherit',
-    stderr: 'inherit',
-    env: { ...process.env, NODE_ENV: 'development' },
-  });
-}
-
-// Debounced rebuilds
-let rebuildTimeout: ReturnType<typeof setTimeout> | null = null;
-let cssRebuildTimeout: ReturnType<typeof setTimeout> | null = null;
-
-function scheduleClientRebuild() {
-  if (rebuildTimeout) clearTimeout(rebuildTimeout);
-  rebuildTimeout = setTimeout(() => buildClient(), 100);
-}
-
-function scheduleCssRebuild() {
-  if (cssRebuildTimeout) clearTimeout(cssRebuildTimeout);
-  cssRebuildTimeout = setTimeout(() => buildCss(), 100);
-}
-
-const srcDir = join(process.cwd(), 'src');
-
-watch(srcDir, { recursive: true }, (eventType, filename) => {
-  if (!filename) return;
-
-  // CSS or component changes: rebuild Tailwind
-  if (filename.endsWith('.css') || filename.endsWith('.tsx')) {
-    scheduleCssRebuild();
-  }
-
-  // Server-side files: restart server
-  if (
-    filename.endsWith('server.ts') ||
-    filename.includes('utils/') ||
-    filename.includes('api/') ||
-    (filename.includes('pages/') && !filename.endsWith('.client.tsx') && !filename.endsWith('.css'))
-  ) {
-    console.log('\nFile change detected, restarting server...\n');
-    startServer();
-    return;
-  }
-
-  // Client-side files: rebuild bundles
-  if (filename.endsWith('.client.tsx') || filename.includes('client/')) {
-    scheduleClientRebuild();
-  }
-
-  // Registry changes: restart server and rebuild
-  if (filename.includes('registry.ts')) {
-    startServer();
-    scheduleClientRebuild();
-  }
-});
-
-// Cleanup on exit
-process.on('SIGINT', () => {
-  if (serverProcess) serverProcess.kill();
-  process.exit(0);
-});
-
-console.log('Starting development environment...\n');
-
-await buildCss();
-await buildClient();
-startServer();
-
-console.log('\nWatching for file changes in src/...\n');
-```
+**Development Bun.build() Configuration**:
+- `splitting: true` - Same as production
+- `minify: false` - Readable output
+- `naming: '[name].js'` - No hashes (not needed in dev)
+- `sourcemap: 'inline'` - Debugging support
 
 ---
 
@@ -584,42 +342,21 @@ console.log('\nWatching for file changes in src/...\n');
 ### Development (dist/)
 ```
 dist/
-├── styles.css              # Unhashed (no cache busting needed)
-├── Home.client.js          # Unhashed client bundle
-├── About.client.js
-└── chunk-*.js              # Shared chunks
+├── styles.css              # Unhashed
+├── Home.client.js          # Unhashed
+├── About.client.js         # Unhashed
+└── chunk-*.js              # Shared chunks (unhashed)
 ```
 
 ### Production (dist/)
 ```
 dist/
-├── manifest.json           # Maps entry names to hashed files
-├── styles-9de07fa6.css     # Content-hashed CSS
-├── Home.client-jp8r3x4m.js # Content-hashed client bundles
-├── About.client-j043rfve.js
-└── chunk-9axpccjb.js       # Shared chunk (React + hydration)
+├── manifest.json           # Asset mapping
+├── styles-{hash}.css       # Content-hashed CSS
+├── Home.client-{hash}.js   # Content-hashed entry
+├── About.client-{hash}.js  # Content-hashed entry
+└── chunk-{hash}.js         # Content-hashed shared chunk
 ```
-
-### manifest.json Example
-```json
-{
-  "home": {
-    "js": "Home.client-jp8r3x4m.js",
-    "css": "styles-9de07fa6.css",
-    "imports": ["chunk-9axpccjb.js"]
-  },
-  "about": {
-    "js": "About.client-j043rfve.js",
-    "css": "styles-9de07fa6.css",
-    "imports": ["chunk-9axpccjb.js"]
-  },
-  "docs": {
-    "css": "styles-9de07fa6.css"
-  }
-}
-```
-
-Note: SSR-only pages (`docs`) have no `js` or `imports` - only CSS.
 
 ---
 
@@ -630,24 +367,25 @@ Note: SSR-only pages (`docs`) have no `js` or `imports` - only CSS.
 ```
 Browser: GET /
     ↓
-Express matches explicit route: app.get('/')
+Express: app.get('/') → renderPage(pages.home, { title: 'Home' })
     ↓
-renderPage('home') called
+ssr.ts: renderToString(createElement(Home, props))
     ↓
-pages['home'] looked up → { component: Home, hydrate: true }
+render.ts: getPageAssetTags(manifest, 'home', true)
     ↓
-renderToString(createElement(StrictMode, createElement(Home)))
+HTML returned:
+  <title>Home</title>
+  <link href="/styles-{hash}.css">
+  <link rel="modulepreload" href="/chunk-{hash}.js">
+  <div id="root">{SSR HTML}</div>
+  <script id="__PROPS__">{serialized props}</script>
+  <script src="/Home.client-{hash}.js">
     ↓
-getPageAssetTags(manifest, 'home', true) resolves hashed filenames
+Browser: Load CSS, preload chunk, execute entry
     ↓
-HTML returned with:
-  - <link href="/styles-9de07fa6.css">
-  - <link rel="modulepreload" href="/chunk-9axpccjb.js">
-  - <script src="/Home.client-jp8r3x4m.js">
+Home.client.tsx: hydrate(Home)
     ↓
-Browser loads cached CSS, cached chunks
-    ↓
-Entry JS hydrates the page with React
+hydrate.tsx: Parse __PROPS__, hydrateRoot(root, <Home {...props} />)
 ```
 
 ### SSR-Only Page Request (Production)
@@ -655,21 +393,19 @@ Entry JS hydrates the page with React
 ```
 Browser: GET /docs
     ↓
-Express matches explicit route: app.get('/docs')
+Express: app.get('/docs') → renderPage(pages.docs, { title: 'Documentation' })
     ↓
-renderPage('docs') called
+ssr.ts: renderToString(createElement(Docs))
     ↓
-pages['docs'] looked up → { component: Docs, hydrate: false }
+render.ts: getPageAssetTags(manifest, 'docs', false)
     ↓
-renderToString(createElement(StrictMode, createElement(Docs)))
+HTML returned:
+  <title>Documentation</title>
+  <link href="/styles-{hash}.css">
+  <div id="root">{SSR HTML}</div>
+  NO <script> tags
     ↓
-getPageAssetTags(manifest, 'docs', false) returns CSS only
-    ↓
-HTML returned with:
-  - <link href="/styles-9de07fa6.css">
-  - NO <script> tags
-    ↓
-Browser renders static HTML + cached CSS
+Browser: Render static HTML + cached CSS
     ↓
 ZERO JavaScript executed
 ```
@@ -680,66 +416,73 @@ ZERO JavaScript executed
 
 ### Hydrated Page (with JavaScript)
 
-1. **Create component**: `src/pages/NewPage.tsx`
-   ```typescript
-   export default function NewPage() {
-     return <div>New Page</div>;
-   }
-   ```
+**Files to create/modify**:
 
-2. **Create client file**: `src/pages/NewPage.client.tsx`
-   ```typescript
-   import { hydrate } from '../client/hydrate';
-   import NewPage from './NewPage';
+1. `src/pages/NewPage.tsx` - React component (receives props if needed)
+2. `src/pages/NewPage.client.tsx` - Client entry calling `hydrate(NewPage)`
+3. `src/pages/registry.ts` - Add entry with `hydrate: true`
+4. `src/server.ts` - Add explicit route
 
-   hydrate(NewPage);
-   ```
+**Registry entry pattern**:
+```
+newpage: {
+  component: NewPage,
+  url: '/new-page',
+  hydrate: true,
+}
+```
 
-3. **Add to registry** (`src/pages/registry.ts`):
-   ```typescript
-   import NewPage from './NewPage';
-
-   export const pages: Record<string, PageConfig> = {
-     // ... existing pages
-     newpage: {
-       component: NewPage,
-       url: '/new-page',
-       hydrate: true,
-     },
-   };
-   ```
-
-4. **Add route** (`src/server.ts`):
-   ```typescript
-   app.get('/new-page', (_req: Request, res: Response) => {
-     res.send(renderPage('newpage'));
-   });
-   ```
+**Route pattern**:
+```
+app.get('/new-page', (req, res) => {
+  res.send(renderPage(pages.newpage, { title: 'New Page' }));
+});
+```
 
 ### SSR-Only Page (zero JavaScript)
 
-1. **Create component**: `src/pages/Static.tsx`
+**Files to create/modify**:
 
-2. **Add to registry** (NO .client.tsx file needed):
-   ```typescript
-   import Static from './Static';
+1. `src/pages/Static.tsx` - React component
+2. `src/pages/registry.ts` - Add entry with `hydrate: false`
+3. `src/server.ts` - Add explicit route
 
-   export const pages: Record<string, PageConfig> = {
-     // ... existing pages
-     static: {
-       component: Static,
-       url: '/static',
-       hydrate: false,  // No JS!
-     },
-   };
-   ```
+**NO `.client.tsx` file needed.**
 
-3. **Add route** (`src/server.ts`):
-   ```typescript
-   app.get('/static', (_req: Request, res: Response) => {
-     res.send(renderPage('static'));
-   });
-   ```
+### Dynamic Page (with server-side data)
+
+**Files to create/modify**:
+
+1. `src/pages/Project.tsx` - React component with typed props interface
+2. `src/pages/Project.client.tsx` - Client entry
+3. `src/pages/registry.ts` - Add entry
+4. `src/server.ts` - Add route with data fetching
+
+**Component pattern**:
+```
+interface ProjectProps {
+  project: { id: string; name: string };
+}
+
+export default function Project({ project }: ProjectProps) { ... }
+```
+
+**Route pattern**:
+```
+app.get('/project/:id', async (req, res) => {
+  const project = await db.getProject(req.params.id);
+  res.send(renderPage(pages.project, {
+    props: { project },
+    title: project.name,
+  }));
+});
+```
+
+**Props lifecycle**:
+1. Server fetches data
+2. `renderPage()` passes props to component for SSR
+3. Props serialized to `<script id="__PROPS__">`
+4. Client `hydrate()` reads and passes props to component
 
 ---
 
@@ -747,27 +490,37 @@ ZERO JavaScript executed
 
 ### 1. Explicit Routes (Security)
 
-Routes are defined explicitly in `server.ts`, NOT iterated from the registry. This prevents potential security issues where an attacker could manipulate the registry to expose unintended routes.
+Routes are defined explicitly in `server.ts`, NOT iterated from registry. This prevents potential security issues where registry manipulation could expose unintended routes.
 
-### 2. Entry Name as Registry Key
+### 2. createPages() Helper for Type Safety
 
-The registry uses entry name as key (`home`, `about`, `docs`) with a `url` property. This makes lookups simple: `pages[entryName]`.
+Auto-injects `name` from object keys and preserves literal types. Benefits:
+- **No duplication**: Key is the name
+- **Full autocomplete**: `pages.home`, `pages.about`, etc.
+- **Zero runtime cost**: Runs once at startup
 
 ### 3. Content-Hashed Filenames (Production)
 
-All production assets have content hashes in filenames. When content changes, the filename changes, forcing browsers to fetch the new version. This enables aggressive caching (`Cache-Control: max-age=31536000`).
+All production assets have content hashes. When content changes, filename changes, forcing browser to fetch new version. Enables aggressive caching (`Cache-Control: max-age=31536000`).
 
 ### 4. Single CSS File
 
 One Tailwind CSS file serves all pages. Trade-off:
-- **Pro**: CSS cached on first visit, no additional downloads on navigation
+- **Pro**: Cached on first visit, no additional downloads
 - **Con**: First load includes all classes (mitigated by Tailwind's purging)
 
 ### 5. Shared Chunk for React
 
-Bun's code splitting extracts React and shared code into a chunk. Users download React once and it's cached for all pages.
+Bun's code splitting extracts React and shared code. Users download React once, cached for all pages.
 
-### 6. renderToString (Synchronous SSR)
+### 6. Props Serialization Pattern
+
+Server props are JSON-serialized into a `<script type="application/json">` tag:
+- Safe from XSS (not executed as JS)
+- Parsed by client hydration utility
+- Only included when `hydrate: true` AND props provided
+
+### 7. renderToString (Synchronous SSR)
 
 Uses synchronous `renderToString` for simplicity. For high-traffic sites with heavy components, consider `renderToPipeableStream` for streaming SSR.
 
@@ -785,21 +538,12 @@ Uses synchronous `renderToString` for simplicity. For high-traffic sites with he
 
 ## Dependencies
 
-```json
-{
-  "dependencies": {
-    "express": "^4.x",
-    "react": "^18.x",
-    "react-dom": "^18.x"
-  },
-  "devDependencies": {
-    "@types/express": "^4.x",
-    "@types/react": "^18.x",
-    "@types/react-dom": "^18.x",
-    "tailwindcss": "^3.x",
-    "typescript": "^5.x"
-  }
-}
-```
+| Package | Purpose |
+|---------|---------|
+| `express` | HTTP server and routing |
+| `react` | UI library |
+| `react-dom` | React DOM rendering (server + client) |
+| `tailwindcss` | CSS framework (dev dependency) |
+| `typescript` | Type checking (dev dependency) |
 
 No Vite, Webpack, or other bundlers needed - Bun handles everything.

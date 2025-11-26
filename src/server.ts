@@ -1,6 +1,7 @@
 import express, { type Request, type Response } from 'express';
 import { join } from 'path';
 import { renderPage } from './utils/ssr';
+import { pages } from './pages/registry';
 import { api } from './api';
 
 const app = express();
@@ -16,15 +17,15 @@ app.use('/api', api);
 
 // Page routes
 app.get('/', (_req: Request, res: Response) => {
-  res.send(renderPage('home'));
+  res.send(renderPage(pages.home));
 });
 
 app.get('/about', (_req: Request, res: Response) => {
-  res.send(renderPage('about'));
+  res.send(renderPage(pages.about));
 });
 
 app.get('/docs', (_req: Request, res: Response) => {
-  res.send(renderPage('docs'));
+  res.send(renderPage(pages.docs));
 });
 
 // 404 handler
