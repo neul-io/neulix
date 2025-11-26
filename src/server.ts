@@ -34,10 +34,6 @@ app.get('/', async (_req: Request, res: Response) => {
   res.send(await renderPage(pages.home));
 });
 
-app.get('/about', async (_req: Request, res: Response) => {
-  res.send(await renderPage(pages.about));
-});
-
 app.get('/docs', async (_req: Request, res: Response) => {
   res.send(await renderPage(pages.docs));
 });

@@ -1,5 +1,4 @@
 import type { PageConfig } from '../types';
-import About from './About';
 import Docs from './Docs';
 import Home from './Home';
 
@@ -16,10 +15,6 @@ function createPages<T extends Record<string, PageInput>>(input: T): { [K in key
 export const pages = createPages({
   home: {
     component: Home,
-    hydrate: true,
-  },
-  about: {
-    component: About,
     hydrate: true,
   },
   docs: {

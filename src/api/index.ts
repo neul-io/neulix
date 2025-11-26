@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { hello } from './hello';
+import { health } from './health';
 
 const api = Router();
 
-api.get('/hello', hello);
+api.get('/health', health);
 
 export { api };
