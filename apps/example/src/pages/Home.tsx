@@ -23,7 +23,7 @@ export default function Home() {
 
   return (
     <Page>
-      <h1>Welcome to Bun + Vite SSR</h1>
+      <h1>Welcome to Neulix</h1>
       <p>This page is hydrated with client-side JavaScript.</p>
 
       <div>

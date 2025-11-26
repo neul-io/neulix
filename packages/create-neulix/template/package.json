@@ -1,0 +1,24 @@
+{
+  "name": "neulix-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "neulix dev",
+    "build": "neulix build",
+    "start": "neulix start"
+  },
+  "dependencies": {
+    "neulix": "^0.1.0",
+    "express": "^5.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3",
+    "@types/express": "^5.0.5",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.3.3"
+  }
+}

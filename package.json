@@ -1,28 +1,18 @@
 {
-  "name": "bun-ssr",
-  "version": "1.0.0",
-  "type": "module",
+  "name": "neulix-monorepo",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
   "scripts": {
-    "dev": "bun run config/dev.ts",
-    "build": "bun run config/build.ts",
-    "start": "NODE_ENV=production bun run src/server.ts",
+    "postinstall": "mkdir -p node_modules/.bin && ln -sf ../neulix/src/cli/index.ts node_modules/.bin/neulix && chmod +x node_modules/.bin/neulix",
+    "dev": "bun run --cwd apps/example dev",
+    "build": "bun run --cwd apps/example build",
+    "start": "bun run --cwd apps/example start",
     "check": "biome check ./ && tsc --noEmit",
-    "fix": "biome check ./ --write",
-    "docker": "docker build -t bun-ssr . && docker run -p 3001:3001 bun-ssr"
-  },
-  "dependencies": {
-    "express": "5.1.0",
-    "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "fix": "biome check ./ --write"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.7",
-    "@tailwindcss/cli": "^4.1.17",
     "@types/bun": "1.3.3",
-    "@types/express": "5.0.5",
-    "@types/react": "19.2.7",
-    "@types/react-dom": "19.2.3",
-    "tailwindcss": "4.1.17",
     "typescript": "5.3.3"
   }
 }
