@@ -40,13 +40,17 @@ const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
 pkg.name = basename(projectName);
 writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 
-// Rename gitignore (npm ignores .gitignore in packages)
-const gitignorePath = join(targetDir, 'gitignore');
-if (existsSync(gitignorePath)) {
-  const dotGitignorePath = join(targetDir, '.gitignore');
-  cpSync(gitignorePath, dotGitignorePath);
-  const { unlinkSync } = await import('fs');
-  unlinkSync(gitignorePath);
+// Rename dotfiles (npm ignores files starting with . in packages)
+const { unlinkSync } = await import('fs');
+
+const dotfiles = ['gitignore', 'dockerignore'];
+for (const file of dotfiles) {
+  const filePath = join(targetDir, file);
+  if (existsSync(filePath)) {
+    const dotFilePath = join(targetDir, `.${file}`);
+    cpSync(filePath, dotFilePath);
+    unlinkSync(filePath);
+  }
 }
 
 console.log(`Done! To get started:
