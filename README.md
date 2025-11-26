@@ -14,7 +14,7 @@ A **Multi-Page Application (MPA) framework** with server-side rendered React, se
 - **Code splitting** - Automatic chunk extraction for shared dependencies
 - **Tailwind CSS v4** - Purged and hashed for production
 - **Explicit routing** - Define routes in code, not filesystem
-- **Express middleware** - Built-in static asset handling
+- **Express middleware** - Built-in static asset handling (optional, Elysia and plain Bun support coming soon)
 - **CLI tools** - `neulix dev`, `neulix build`, `neulix start`
 
 ---
@@ -128,30 +128,18 @@ app.listen(3000);
 | `neulix build` | Build for production |
 | `neulix start` | Start production server |
 
-### Options
-
-```bash
-# Custom server entry
-neulix dev --server=src/server.ts
-neulix start --server=src/server.ts
-
-# Custom pages registry
-neulix dev --pages=src/pages/registry.ts
-neulix build --pages=src/pages/registry.ts
-```
-
 ---
 
 ## Styling with Tailwind CSS v4
 
-Create your CSS file:
+A `global.css` file is automatically created for you:
 
 ```css
 /* src/styles/global.css */
 @import "tailwindcss";
 ```
 
-The CLI automatically builds all CSS files in `src/styles/` using `@tailwindcss/cli`.
+You can modify this file or add additional CSS files to `src/styles/`. The CLI automatically builds all CSS files in this directory using `@tailwindcss/cli`.
 
 ---
 
