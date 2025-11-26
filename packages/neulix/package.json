@@ -1,7 +1,14 @@
 {
   "name": "neulix",
   "version": "0.1.0",
+  "description": "A minimal, fast, and fully controllable React SSR framework built on Bun",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/neul-io/neulix"
+  },
+  "keywords": ["react", "ssr", "bun", "framework", "mpa", "hydration"],
   "main": "./src/index.ts",
   "bin": {
     "neulix": "./src/cli/index.ts"
@@ -12,6 +19,7 @@
     "./cli": "./src/cli/index.ts",
     "./express": "./src/middleware/express.ts"
   },
+  "files": ["src"],
   "dependencies": {
     "@tailwindcss/cli": "^4.1.17",
     "tailwindcss": "^4.1.17"

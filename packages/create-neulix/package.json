@@ -1,7 +1,14 @@
 {
   "name": "create-neulix",
   "version": "0.1.0",
+  "description": "Create a new Neulix project",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/neul-io/neulix"
+  },
+  "keywords": ["create", "neulix", "react", "ssr", "bun", "scaffold"],
   "bin": {
     "create-neulix": "./src/index.ts"
   },
