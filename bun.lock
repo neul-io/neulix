@@ -26,6 +26,13 @@
         "tailwindcss": "4.1.17",
       },
     },
+    "packages/create-neulix": {
+      "name": "create-neulix",
+      "version": "0.1.0",
+      "bin": {
+        "create-neulix": "./src/index.ts",
+      },
+    },
     "packages/neulix": {
       "name": "neulix",
       "version": "0.1.0",
@@ -171,6 +178,8 @@
     "cookie": ["cookie@0.7.2", "", {}, "sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w=="],
 
     "cookie-signature": ["cookie-signature@1.2.2", "", {}, "sha512-D76uU73ulSXrD1UXF4KE2TMxVVwhsnCgfAyTg9k8P6KGZjlXKrOLe4dJQKI3Bxi5wjesZoFXJWElNWBjPZMbhg=="],
+
+    "create-neulix": ["create-neulix@workspace:packages/create-neulix"],
 
     "csstype": ["csstype@3.2.3", "", {}, "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ=="],
 
