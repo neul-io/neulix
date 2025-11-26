@@ -1,5 +1,5 @@
 import { build, Glob, type Subprocess, spawn } from 'bun';
-import { existsSync, mkdirSync, watch } from 'fs';
+import { existsSync, mkdirSync, rmSync, watch } from 'fs';
 import { join, resolve } from 'path';
 import { pages } from '../src/pages/registry';
 
@@ -22,10 +22,11 @@ let buildInProgress = false;
 
 const distPath = resolve(process.cwd(), 'dist');
 
-// Ensure dist exists
-if (!existsSync(distPath)) {
-  mkdirSync(distPath, { recursive: true });
+// Clean and recreate dist folder
+if (existsSync(distPath)) {
+  rmSync(distPath, { recursive: true, force: true });
 }
+mkdirSync(distPath, { recursive: true });
 
 async function buildCss() {
   console.log('Building CSS...');
