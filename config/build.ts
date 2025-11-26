@@ -1,6 +1,6 @@
-import { rmSync, existsSync, mkdirSync, writeFileSync } from 'fs';
-import { resolve, basename } from 'path';
-import { Glob } from 'bun';
+import { build, file, Glob, hash, spawn, write } from 'bun';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
+import { basename, resolve } from 'path';
 import { pages } from '../src/pages/registry';
 
 // Find client entry file for a page using glob pattern.
@@ -49,30 +49,51 @@ async function buildProduction() {
 
   // Build CSS with Tailwind CLI
   console.log('Building CSS with Tailwind...');
-  const tailwindProcess = Bun.spawn(
-    ['bunx', 'tailwindcss', '-i', 'src/styles/input.css', '-o', 'dist/styles.css', '--minify'],
-    {
-      stdout: 'ignore',
-      stderr: 'ignore',
-      env: {
-        ...process.env,
-        BROWSERSLIST_IGNORE_OLD_DATA: '1',
-        NODE_NO_WARNINGS: '1',
-      },
-    }
-  );
-  await tailwindProcess.exited;
 
-  if (tailwindProcess.exitCode !== 0) {
-    throw new Error('Tailwind CSS build failed');
+  // Find all CSS files in src/styles/
+  const cssGlob = new Glob('src/styles/*.css');
+  const cssFiles: string[] = [];
+  for await (const file of cssGlob.scan('.')) {
+    cssFiles.push(file);
   }
 
-  // Add hash to CSS file
-  const cssContent = await Bun.file('dist/styles.css').text();
-  const cssHash = Bun.hash(cssContent).toString(16).slice(0, 8);
-  const cssFileName = `styles-${cssHash}.css`;
-  await Bun.write(`dist/${cssFileName}`, cssContent);
-  rmSync('dist/styles.css');
+  // Process each CSS file with Tailwind
+  const cssFileNames: Record<string, string> = {};
+
+  for (const cssFile of cssFiles) {
+    const baseName = cssFile.split('/').pop()!.replace('.css', '');
+    const tempOutput = `dist/${baseName}.css`;
+
+    const tailwindProcess = spawn(
+      ['bunx', '@tailwindcss/cli', '-i', cssFile, '-o', tempOutput, '--minify'],
+      {
+        stdout: 'ignore',
+        stderr: 'ignore',
+        env: {
+          ...process.env,
+          BROWSERSLIST_IGNORE_OLD_DATA: '1',
+          NODE_NO_WARNINGS: '1',
+        },
+      }
+    );
+    await tailwindProcess.exited;
+
+    if (tailwindProcess.exitCode !== 0) {
+      throw new Error(`Tailwind CSS build failed for ${cssFile}`);
+    }
+
+    // Add hash to CSS file
+    const cssContent = await file(tempOutput).text();
+    const cssHash = hash(cssContent).toString(16).slice(0, 8);
+    const hashedFileName = `${baseName}-${cssHash}.css`;
+    await write(`dist/${hashedFileName}`, cssContent);
+    rmSync(tempOutput);
+
+    cssFileNames[baseName] = hashedFileName;
+  }
+
+  // Use 'input' as the main CSS file for backward compatibility
+  const cssFileName = cssFileNames['input'] || Object.values(cssFileNames)[0];
 
   // Collect entry points for hydrated pages only
   const entrypoints: string[] = [];
@@ -93,7 +114,7 @@ async function buildProduction() {
   console.log('Building client bundles...');
 
   // Build all entries with Bun
-  const result = (await Bun.build({
+  const result = (await build({
     entrypoints,
     outdir: 'dist',
     naming: '[name]-[hash].[ext]',

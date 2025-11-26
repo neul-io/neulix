@@ -1,5 +1,5 @@
-import { watch, existsSync, mkdirSync } from 'fs';
-import { spawn, type Subprocess, Glob } from 'bun';
+import { build, Glob, type Subprocess, spawn } from 'bun';
+import { existsSync, mkdirSync, watch } from 'fs';
 import { join, resolve } from 'path';
 import { pages } from '../src/pages/registry';
 
@@ -29,24 +29,39 @@ if (!existsSync(distPath)) {
 
 async function buildCss() {
   console.log('Building CSS...');
-  const tailwindProcess = Bun.spawn(
-    ['bunx', 'tailwindcss', '-i', 'src/styles/input.css', '-o', 'dist/styles.css'],
-    {
-      stdout: 'ignore',
-      stderr: 'ignore',
+
+  // Find all CSS files in src/styles/
+  const cssGlob = new Glob('src/styles/*.css');
+  const cssFiles: string[] = [];
+  for await (const file of cssGlob.scan('.')) {
+    cssFiles.push(file);
+  }
+
+  // Process each CSS file with Tailwind
+  const processes = cssFiles.map(async cssFile => {
+    const baseName = cssFile.split('/').pop()!.replace('.css', '');
+    const outputFile = `dist/${baseName}.css`;
+
+    const tailwindProcess = spawn(['bunx', '@tailwindcss/cli', '-i', cssFile, '-o', outputFile], {
+      stdout: 'inherit',
+      stderr: 'inherit',
       env: {
         ...process.env,
         BROWSERSLIST_IGNORE_OLD_DATA: '1',
         NODE_NO_WARNINGS: '1',
       },
-    }
-  );
-  await tailwindProcess.exited;
+    });
+    await tailwindProcess.exited;
+    return { file: cssFile, exitCode: tailwindProcess.exitCode };
+  });
 
-  if (tailwindProcess.exitCode !== 0) {
-    console.error('Tailwind CSS build failed');
+  const results = await Promise.all(processes);
+  const failed = results.filter(r => r.exitCode !== 0);
+
+  if (failed.length > 0) {
+    console.error('Tailwind CSS build failed for:', failed.map(f => f.file).join(', '));
   } else {
-    console.log('CSS built');
+    console.log(`CSS built (${cssFiles.length} file${cssFiles.length !== 1 ? 's' : ''})`);
   }
 }
 
@@ -71,7 +86,7 @@ async function buildClient() {
   }
 
   try {
-    const result = await Bun.build({
+    const result = await build({
       entrypoints,
       outdir: 'dist',
       naming: '[name].js',

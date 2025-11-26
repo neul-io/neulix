@@ -1,3 +1,4 @@
+import { Glob } from 'bun';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { createElement, StrictMode } from 'react';
@@ -16,10 +17,21 @@ if (!isDev) {
   }
 }
 
-export function renderPage<P extends Record<string, unknown> = Record<string, never>>(
+// Discover CSS files in dist/ for dev mode
+async function getDevCssTags(): Promise<string> {
+  const cssGlob = new Glob('dist/*.css');
+  const cssFiles: string[] = [];
+  for await (const file of cssGlob.scan('.')) {
+    const baseName = file.split('/').pop()!;
+    cssFiles.push(baseName);
+  }
+  return cssFiles.map(file => `<link rel="stylesheet" href="/${file}">`).join('\n    ');
+}
+
+export async function renderPage<P extends Record<string, unknown> = Record<string, never>>(
   page: PageConfig<P>,
   options: RenderOptions<P> = {}
-): string {
+): Promise<string> {
   const { props, title } = options;
 
   const appHtml = renderToString(
@@ -33,7 +45,7 @@ export function renderPage<P extends Record<string, unknown> = Record<string, ne
   const capitalizedName = page.name.charAt(0).toUpperCase() + page.name.slice(1);
 
   if (isDev) {
-    cssTags = '<link rel="stylesheet" href="/styles.css">';
+    cssTags = await getDevCssTags();
 
     if (page.hydrate) {
       scriptTags = `<script type="module" src="/${capitalizedName}.client.js"></script>`;

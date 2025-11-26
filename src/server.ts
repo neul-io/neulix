@@ -28,20 +28,18 @@ if (isDev) {
   );
 }
 
-// API routes
 app.use('/api', api);
 
-// Page routes
-app.get('/', (_req: Request, res: Response) => {
-  res.send(renderPage(pages.home));
+app.get('/', async (_req: Request, res: Response) => {
+  res.send(await renderPage(pages.home));
 });
 
-app.get('/about', (_req: Request, res: Response) => {
-  res.send(renderPage(pages.about));
+app.get('/about', async (_req: Request, res: Response) => {
+  res.send(await renderPage(pages.about));
 });
 
-app.get('/docs', (_req: Request, res: Response) => {
-  res.send(renderPage(pages.docs));
+app.get('/docs', async (_req: Request, res: Response) => {
+  res.send(await renderPage(pages.docs));
 });
 
 // 404 handler
