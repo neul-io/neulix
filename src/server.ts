@@ -8,9 +8,25 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const isDev = process.env.NODE_ENV !== 'production';
 
-// Serve static assets
-app.use(express.static(join(process.cwd(), 'dist')));
-app.use(express.static(join(process.cwd(), 'public')));
+// Serve static assets with caching
+if (isDev) {
+  // Development: no caching
+  app.use(express.static(join(process.cwd(), 'dist')));
+  app.use(express.static(join(process.cwd(), 'public')));
+} else {
+  // Production: aggressive caching for hashed assets
+  app.use(
+    express.static(join(process.cwd(), 'dist'), {
+      maxAge: '1y',
+      immutable: true,
+    })
+  );
+  app.use(
+    express.static(join(process.cwd(), 'public'), {
+      maxAge: '1d',
+    })
+  );
+}
 
 // API routes
 app.use('/api', api);

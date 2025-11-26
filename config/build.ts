@@ -1,6 +1,21 @@
 import { rmSync, existsSync, mkdirSync, writeFileSync } from 'fs';
 import { resolve, basename } from 'path';
-import { pages } from './pages/registry';
+import { Glob } from 'bun';
+import { pages } from '../src/pages/registry';
+
+// Find client entry file for a page using glob pattern.
+// Searches src/pages/**/*.client.tsx to support any folder structure.
+async function findClientEntry(entryName: string): Promise<string | null> {
+  const capitalizedEntry = entryName.charAt(0).toUpperCase() + entryName.slice(1);
+  const pattern = `src/pages/**/${capitalizedEntry}.client.tsx`;
+  const glob = new Glob(pattern);
+
+  for await (const file of glob.scan('.')) {
+    return resolve(process.cwd(), file);
+  }
+
+  return null;
+}
 
 interface BunBuildOutput {
   outputs: Array<{
@@ -62,10 +77,13 @@ async function buildProduction() {
 
   for (const [entryName, config] of Object.entries(pages)) {
     if (config.hydrate) {
-      const capitalizedEntry = entryName.charAt(0).toUpperCase() + entryName.slice(1);
-      const entryPath = resolve(process.cwd(), `src/pages/${capitalizedEntry}.client.tsx`);
-      entrypoints.push(entryPath);
-      entryNameMap.set(entryPath, entryName);
+      const entryPath = await findClientEntry(entryName);
+      if (entryPath) {
+        entrypoints.push(entryPath);
+        entryNameMap.set(entryPath, entryName);
+      } else {
+        console.warn(`Warning: No .client.tsx file found for "${entryName}"`);
+      }
     }
   }
 

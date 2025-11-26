@@ -9,7 +9,6 @@ export interface BuildManifest {
 export interface PageConfig<P = unknown> {
   name: string;
   component: React.ComponentType<P>;
-  url: string;
   hydrate: boolean;
 }
 

@@ -18,17 +18,14 @@ function createPages<T extends Record<string, PageInput>>(
 export const pages = createPages({
   home: {
     component: Home,
-    url: '/',
     hydrate: true,
   },
   about: {
     component: About,
-    url: '/about',
     hydrate: true,
   },
   docs: {
     component: Docs,
-    url: '/docs',
     hydrate: false,
   },
 });

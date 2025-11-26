@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "bun run src/dev.ts",
-    "build": "bun run src/build.ts",
+    "dev": "bun run config/dev.ts",
+    "build": "bun run config/build.ts",
     "start": "NODE_ENV=production bun run src/server.ts",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
