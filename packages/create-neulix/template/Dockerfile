@@ -41,7 +41,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Create non-root user for security
-RUN adduser --system --uid 1001 app
+RUN addgroup --system --gid 1001 app && \
+    adduser --system --uid 1001 --gid 1001 app
 
 # Copy only production dependencies
 COPY --chown=app package.json bun.lock* ./
