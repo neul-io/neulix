@@ -196,6 +196,8 @@ export async function dev(options: DevOptions): Promise<void> {
     if (
       normalizedFilename.endsWith('.client.tsx') ||
       normalizedFilename.includes('client/') ||
+      normalizedFilename.startsWith('components/') ||
+      normalizedFilename.includes('/components/') ||
       (normalizedFilename.includes('pages/') && normalizedFilename.endsWith('.tsx'))
     ) {
       scheduleClientRebuild();
