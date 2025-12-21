@@ -32,14 +32,11 @@ async function loadPages(pagesRegistry: string): Promise<Record<string, PageConf
 }
 
 async function findClientEntry(entryName: string): Promise<string | null> {
-  const capitalizedEntry = entryName.charAt(0).toUpperCase() + entryName.slice(1);
-  const pattern = `src/pages/**/${capitalizedEntry}.client.tsx`;
-  const glob = new Glob(pattern);
-
-  for await (const file of glob.scan('.')) {
-    return resolve(process.cwd(), file);
+  // Use the registry key directly as a path (e.g., "console/Users" → "src/pages/console/Users.client.tsx")
+  const clientPath = resolve(process.cwd(), `src/pages/${entryName}.client.tsx`);
+  if (existsSync(clientPath)) {
+    return clientPath;
   }
-
   return null;
 }
 
@@ -119,7 +116,8 @@ export async function buildProduction(options: BuildOptions): Promise<void> {
   const result = (await build({
     entrypoints,
     outdir: 'dist',
-    naming: '[name]-[hash].[ext]',
+    root: 'src/pages',
+    naming: '[dir]/[name]-[hash].[ext]',
     splitting: true,
     minify: true,
     target: 'browser',
@@ -140,23 +138,24 @@ export async function buildProduction(options: BuildOptions): Promise<void> {
   const chunks: string[] = [];
 
   for (const output of result.outputs) {
-    const fileName = basename(output.path);
+    // Get path relative to dist/ (e.g., "console/Users.client-abc123.js")
+    const relativePath = output.path.replace(`${distPath}/`, '').replace(/\\/g, '/');
 
     if (output.kind === 'entry-point') {
       const entryPath = entrypoints.find(ep => {
         const name = basename(ep, '.client.tsx').toLowerCase();
-        return fileName.toLowerCase().startsWith(name);
+        return basename(relativePath).toLowerCase().startsWith(name);
       });
 
       if (entryPath) {
         const entryName = entryNameMap.get(entryPath)!;
         manifest[entryName] = {
-          js: fileName,
+          js: relativePath,
           css: cssFileName,
         };
       }
     } else if (output.kind === 'chunk') {
-      chunks.push(fileName);
+      chunks.push(relativePath);
     }
   }
 

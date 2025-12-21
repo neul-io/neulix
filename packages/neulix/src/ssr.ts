@@ -47,13 +47,12 @@ export async function renderPage<P extends Record<string, unknown> = Record<stri
   let cssTags = '';
   let preloadTags = '';
 
-  const capitalizedName = page.name.charAt(0).toUpperCase() + page.name.slice(1);
-
   if (isDev) {
     cssTags = await getDevCssTags();
 
     if (page.hydrate) {
-      scriptTags = `<script type="module" src="/${capitalizedName}.client.js"></script>`;
+      // Use page.name directly as path (e.g., "console/Users" → "/console/Users.client.js")
+      scriptTags = `<script type="module" src="/${page.name}.client.js"></script>`;
     }
   } else if (manifest) {
     const assets = getPageAssetTags(manifest, page.name, page.hydrate);
