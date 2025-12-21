@@ -175,29 +175,33 @@ export async function dev(options: DevOptions): Promise<void> {
   const watcher = watch(srcDir, { recursive: true }, (eventType, filename) => {
     if (!filename) return;
 
-    if (filename.endsWith('.css') || filename.endsWith('.tsx')) {
+    // Normalize path separators for cross-platform compatibility
+    const normalizedFilename = filename.replace(/\\/g, '/');
+
+    if (normalizedFilename.endsWith('.css') || normalizedFilename.endsWith('.tsx')) {
       scheduleCssRebuild();
     }
 
     if (
-      filename.endsWith('server.ts') ||
-      filename.includes('utils/') ||
-      filename.includes('api/') ||
-      filename.includes('components/') ||
-      (filename.includes('pages/') && !filename.endsWith('.client.tsx') && !filename.endsWith('.css'))
+      normalizedFilename.endsWith('server.ts') ||
+      normalizedFilename.includes('utils/') ||
+      normalizedFilename.includes('api/') ||
+      normalizedFilename.startsWith('components/') ||
+      normalizedFilename.includes('/components/') ||
+      (normalizedFilename.includes('pages/') && !normalizedFilename.endsWith('.client.tsx') && !normalizedFilename.endsWith('.css'))
     ) {
       restartServer();
     }
 
     if (
-      filename.endsWith('.client.tsx') ||
-      filename.includes('client/') ||
-      (filename.includes('pages/') && filename.endsWith('.tsx'))
+      normalizedFilename.endsWith('.client.tsx') ||
+      normalizedFilename.includes('client/') ||
+      (normalizedFilename.includes('pages/') && normalizedFilename.endsWith('.tsx'))
     ) {
       scheduleClientRebuild();
     }
 
-    if (filename.includes('registry.ts')) {
+    if (normalizedFilename.includes('registry.ts')) {
       restartServer();
       scheduleClientRebuild();
     }
