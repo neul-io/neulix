@@ -1,6 +1,6 @@
 {
   "name": "neulix",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A minimal, fast, and fully controllable React SSR framework built on Bun",
   "type": "module",
   "license": "MIT",
@@ -20,11 +20,8 @@
     "./express": "./src/middleware/express.ts"
   },
   "files": ["src"],
-  "dependencies": {
-    "@tailwindcss/cli": "^4.1.17",
-    "tailwindcss": "^4.1.17"
-  },
   "peerDependencies": {
+    "@tailwindcss/cli": ">=4.0.0",
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0"
   }
