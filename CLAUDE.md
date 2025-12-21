@@ -151,7 +151,10 @@ my-app/
 │   │   ├── registry.ts        #   Page configuration registry
 │   │   ├── Home.tsx           #   Page component
 │   │   ├── Home.client.tsx    #   Client entry (if hydrated)
-│   │   └── Docs.tsx           #   SSR-only page (no .client.tsx)
+│   │   ├── Docs.tsx           #   SSR-only page (no .client.tsx)
+│   │   └── console/           #   Nested pages in subdirectories
+│   │       ├── Users.tsx
+│   │       └── Users.client.tsx
 │   ├── components/            # Shared components (optional)
 │   ├── api/                   # API routes (optional)
 │   └── styles/                # CSS files (required)
@@ -175,11 +178,11 @@ import Home from './Home';
 import Docs from './Docs';
 
 export const pages = createPages({
-  home: {
+  Home: {
     component: Home,
     hydrate: true,    // Ships JavaScript, becomes interactive
   },
-  docs: {
+  Docs: {
     component: Docs,
     hydrate: false,   // SSR-only, zero JavaScript
   },
@@ -190,6 +193,17 @@ export const pages = createPages({
 - `createPages()` auto-injects `name` property from object keys
 - `hydrate: true` requires a corresponding `.client.tsx` file
 - `hydrate: false` pages ship no JavaScript (pure SSR)
+- Registry keys are used directly as file paths
+
+**Path-style registry keys:** For nested directories, use path-style keys:
+
+```typescript
+export const pages = createPages({
+  Home: { ... },                      // → src/pages/Home.client.tsx
+  'console/Users': { ... },           // → src/pages/console/Users.client.tsx
+  'console/project/Builds': { ... },  // → src/pages/console/project/Builds.client.tsx
+});
+```
 
 ### Client Entry Files (*.client.tsx)
 
@@ -206,7 +220,12 @@ hydrate(Home);
 **Naming convention:**
 - Component: `Home.tsx`
 - Client entry: `Home.client.tsx`
-- Registry key: `home` (lowercase)
+- Registry key: `Home` (matches component file name)
+
+For nested pages:
+- Component: `console/Users.tsx`
+- Client entry: `console/Users.client.tsx`
+- Registry key: `'console/Users'` (path-style)
 
 ### Server Entry (server.ts)
 
@@ -333,21 +352,25 @@ export default function User({ user }: UserProps) {
 
 ```
 dist/
-├── global.css            # Unhashed CSS
-├── Home.client.js        # Unhashed entry bundles
+├── global.css                  # Unhashed CSS
+├── Home.client.js              # Unhashed entry bundles
 ├── About.client.js
-└── chunk-*.js            # Shared chunks (React, etc.)
+├── console/                    # Nested pages preserve directory structure
+│   └── Users.client.js
+└── chunk-*.js                  # Shared chunks (React, etc.)
 ```
 
 ### Production
 
 ```
 dist/
-├── manifest.json         # Asset mapping for SSR
-├── global-{hash}.css     # Content-hashed CSS
-├── Home.client-{hash}.js # Content-hashed entries
+├── manifest.json               # Asset mapping for SSR
+├── global-{hash}.css           # Content-hashed CSS
+├── Home.client-{hash}.js       # Content-hashed entries
 ├── About.client-{hash}.js
-└── chunk-{hash}.js       # Content-hashed chunks
+├── console/                    # Nested pages preserve directory structure
+│   └── Users.client-{hash}.js
+└── chunk-{hash}.js             # Content-hashed chunks
 ```
 
 ---
@@ -500,12 +523,32 @@ Zero JavaScript execution for SSR-only pages.
    ```
 3. Add to `src/pages/registry.ts`:
    ```typescript
-   newpage: { component: NewPage, hydrate: true }
+   NewPage: { component: NewPage, hydrate: true }
    ```
 4. Add route in `src/server.ts`:
    ```typescript
    app.get('/new-page', async (req, res) => {
-     res.send(await renderPage(pages.newpage, { title: 'New Page' }));
+     res.send(await renderPage(pages.NewPage, { title: 'New Page' }));
+   });
+   ```
+
+### Nested Page (in subdirectory)
+
+1. Create `src/pages/console/Users.tsx`
+2. Create `src/pages/console/Users.client.tsx`:
+   ```typescript
+   import { hydrate } from 'neulix/client';
+   import Users from './Users';
+   hydrate(Users);
+   ```
+3. Add to `src/pages/registry.ts`:
+   ```typescript
+   'console/Users': { component: Users, hydrate: true }
+   ```
+4. Add route in `src/server.ts`:
+   ```typescript
+   app.get('/console/users', async (req, res) => {
+     res.send(await renderPage(pages['console/Users'], { title: 'Users' }));
    });
    ```
 

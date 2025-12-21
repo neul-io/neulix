@@ -73,14 +73,24 @@ import Home from './Home';
 import Docs from './Docs';
 
 export const pages = createPages({
-  home: {
+  Home: {
     component: Home,
     hydrate: true,    // Interactive - ships JavaScript
   },
-  docs: {
+  Docs: {
     component: Docs,
     hydrate: false,   // Static - zero JavaScript
   },
+});
+```
+
+Registry keys are used directly as file paths. For nested directories, use path-style keys:
+
+```typescript
+export const pages = createPages({
+  Home: { ... },                      // → src/pages/Home.client.tsx
+  'console/Users': { ... },           // → src/pages/console/Users.client.tsx
+  'console/project/Builds': { ... },  // → src/pages/console/project/Builds.client.tsx
 });
 ```
 
