@@ -41,6 +41,8 @@ export function createHtmlTemplate({
   preloadTags = '',
   title = 'App',
   propsJson,
+  customScripts = '',
+  customHeadScripts = '',
 }: HtmlTemplateOptions): string {
   const propsScript = propsJson ? `<script id="__PROPS__" type="application/json">${propsJson}</script>` : '';
 
@@ -52,11 +54,13 @@ export function createHtmlTemplate({
     <title>${title}</title>
     ${cssTags}
     ${preloadTags}
+    ${customHeadScripts}
   </head>
   <body>
     <div id="root">${appHtml}</div>
     ${propsScript}
     ${scriptTags}
+    ${customScripts}
   </body>
 </html>`;
 }
