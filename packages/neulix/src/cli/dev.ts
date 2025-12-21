@@ -183,6 +183,7 @@ export async function dev(options: DevOptions): Promise<void> {
       filename.endsWith('server.ts') ||
       filename.includes('utils/') ||
       filename.includes('api/') ||
+      filename.includes('components/') ||
       (filename.includes('pages/') && !filename.endsWith('.client.tsx') && !filename.endsWith('.css'))
     ) {
       restartServer();

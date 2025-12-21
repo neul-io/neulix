@@ -360,7 +360,7 @@ The dev server watches `src/` and responds to changes:
 |-------------|--------|
 | `*.css`, `*.tsx` | Rebuild Tailwind CSS |
 | `*.client.tsx`, `client/*` | Rebuild client bundles |
-| `server.ts`, `utils/*`, `api/*` | Restart server |
+| `server.ts`, `utils/*`, `api/*`, `components/*` | Restart server |
 | `registry.ts` | Restart server + rebuild client |
 | Page components (not `.client.tsx`) | Restart server |
 
