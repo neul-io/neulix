@@ -10,7 +10,7 @@ function getProps<P>(): P | undefined {
   return undefined;
 }
 
-export function hydrate<P extends Record<string, unknown>>(Component: React.ComponentType<P>): void {
+export function hydrate<P = Record<string, unknown>>(Component: React.ComponentType<P>): void {
   const root = document.getElementById('root');
   if (root) {
     const props = getProps<P>();
