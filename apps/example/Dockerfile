@@ -59,6 +59,6 @@ COPY --chown=app public ./public
 
 USER app
 
-EXPOSE 3000
+EXPOSE 8080
 
 CMD ["bun", "run", "start"]

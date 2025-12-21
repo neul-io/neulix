@@ -5,7 +5,7 @@ import { api } from './api';
 import { pages } from './pages/registry';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 // Serve static assets (dist/ and public/) with proper caching
 staticAssets(app);

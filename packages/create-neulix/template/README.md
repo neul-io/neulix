@@ -18,7 +18,7 @@ bun run build
 bun run start
 ```
 
-Your app will be running at `http://localhost:3000`.
+Your app will be running at `http://localhost:8080`.
 
 ---
 

@@ -116,7 +116,7 @@ app.get('/docs', async (req, res) => {
   res.send(await renderPage(pages.docs));
 });
 
-app.listen(3000);
+app.listen(8080);
 ```
 
 **Security note:** Routes are defined explicitly, NOT generated from registry. This prevents unintended route exposure.

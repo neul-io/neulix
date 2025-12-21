@@ -9,7 +9,7 @@
     "start": "neulix start",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "docker": "docker build -t neulix-app . && docker run -p 3000:3000 neulix-app"
+    "docker": "docker build -t neulix-app . && docker run -p 8080:8080 neulix-app"
   },
   "dependencies": {
     "neulix": "^0.1.2",

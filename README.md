@@ -35,7 +35,7 @@ bun install
 bun run dev
 ```
 
-Your app will be running at `http://localhost:3000`.
+Your app will be running at `http://localhost:8080`.
 
 ---
 
@@ -115,7 +115,7 @@ app.get('/docs', async (req, res) => {
   res.send(await renderPage(pages.docs));
 });
 
-app.listen(3000);
+app.listen(8080);
 ```
 
 ---
