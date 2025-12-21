@@ -5,7 +5,7 @@ import { createElement, StrictMode } from 'react';
 import { renderToString } from 'react-dom/server';
 import { ErrorBoundary } from './components/error-boundary';
 import { createHtmlTemplate, getPageAssetTags } from './render';
-import type { BuildManifest, PageConfig, RenderOptions, ScriptTag } from './types';
+import type { BuildManifest, PageConfig, RenderOptions } from './types';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -29,29 +29,11 @@ async function getDevCssTags(): Promise<string> {
   return cssFiles.map(file => `<link rel="stylesheet" href="/${file}">`).join('\n    ');
 }
 
-function buildScriptTag(script: ScriptTag): string {
-  const attrs: string[] = [];
-
-  if (script.src) attrs.push(`src="${script.src}"`);
-  if (script.type) attrs.push(`type="${script.type}"`);
-  if (script.id) attrs.push(`id="${script.id}"`);
-  if (script.async) attrs.push('async');
-  if (script.defer) attrs.push('defer');
-
-  const content = script.content ?? '';
-  return `<script ${attrs.join(' ')}>${content}</script>`;
-}
-
-function buildScriptTags(scripts: ScriptTag[] | undefined): string {
-  if (!scripts || scripts.length === 0) return '';
-  return scripts.map(buildScriptTag).join('\n    ');
-}
-
 export async function renderPage<P extends Record<string, unknown> = Record<string, never>>(
   page: PageConfig<P>,
   options: RenderOptions<P> = {}
 ): Promise<string> {
-  const { props, title, scripts, headScripts } = options;
+  const { props, title, headTags, bodyTags } = options;
 
   const appHtml = renderToString(
     createElement(
@@ -90,7 +72,7 @@ export async function renderPage<P extends Record<string, unknown> = Record<stri
     preloadTags,
     title,
     propsJson,
-    customScripts: buildScriptTags(scripts),
-    customHeadScripts: buildScriptTags(headScripts),
+    headTags,
+    bodyTags,
   });
 }

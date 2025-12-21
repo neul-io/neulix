@@ -14,20 +14,11 @@ export interface PageConfig<P = unknown> {
 
 export type PageInput<P = unknown> = Omit<PageConfig<P>, 'name'>;
 
-export interface ScriptTag {
-  src?: string;
-  content?: string;
-  async?: boolean;
-  defer?: boolean;
-  type?: string;
-  id?: string;
-}
-
 export interface RenderOptions<P = unknown> {
   props?: P;
   title?: string;
-  scripts?: ScriptTag[];
-  headScripts?: ScriptTag[];
+  headTags?: string;
+  bodyTags?: string;
 }
 
 export interface HtmlTemplateOptions {
@@ -37,8 +28,8 @@ export interface HtmlTemplateOptions {
   preloadTags?: string;
   title?: string;
   propsJson?: string;
-  customScripts?: string;
-  customHeadScripts?: string;
+  headTags?: string;
+  bodyTags?: string;
 }
 
 // Helper to create pages with automatic name inference

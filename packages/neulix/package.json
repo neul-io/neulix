@@ -1,6 +1,6 @@
 {
   "name": "neulix",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "A minimal, fast, and fully controllable React SSR framework built on Bun",
   "type": "module",
   "license": "MIT",

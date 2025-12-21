@@ -547,3 +547,11 @@ Zero JavaScript execution for SSR-only pages.
 | `typescript` | Type checking (dev dependency) |
 
 No Webpack, Vite, or additional bundlers - Bun handles everything.
+
+---
+
+## Maintainer Rules
+
+### NPM Publishing
+
+**NEVER publish to npm without explicit user confirmation first.** Always ask for approval before running `npm publish` on any package.
