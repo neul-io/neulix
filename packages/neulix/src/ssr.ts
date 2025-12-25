@@ -9,13 +9,20 @@ import type { BuildManifest, PageConfig, RenderOptions } from './types';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
-// Load manifest once at startup in production
+// Lazily load manifest on first use in production
 let manifest: BuildManifest | undefined;
-if (!isDev) {
+let manifestLoaded = false;
+
+function getManifest(): BuildManifest | undefined {
+  if (isDev) return undefined;
+  if (manifestLoaded) return manifest;
+
+  manifestLoaded = true;
   const manifestPath = join(process.cwd(), 'dist/manifest.json');
   if (existsSync(manifestPath)) {
     manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
   }
+  return manifest;
 }
 
 // Discover CSS files in dist/ for dev mode
@@ -54,11 +61,14 @@ export async function renderPage<P extends Record<string, unknown> = Record<stri
       // Use page.name directly as path (e.g., "console/Users" → "/console/Users.client.js")
       scriptTags = `<script type="module" src="/${page.name}.client.js"></script>`;
     }
-  } else if (manifest) {
-    const assets = getPageAssetTags(manifest, page.name, page.hydrate);
-    cssTags = assets.cssTags;
-    preloadTags = assets.preloadTags;
-    scriptTags = assets.scriptTags;
+  } else {
+    const manifest = getManifest();
+    if (manifest) {
+      const assets = getPageAssetTags(manifest, page.name, page.hydrate);
+      cssTags = assets.cssTags;
+      preloadTags = assets.preloadTags;
+      scriptTags = assets.scriptTags;
+    }
   }
 
   // Only serialize props if page hydrates (client needs them)
