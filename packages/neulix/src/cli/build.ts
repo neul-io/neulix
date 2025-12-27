@@ -142,9 +142,16 @@ export async function buildProduction(options: BuildOptions): Promise<void> {
     const relativePath = output.path.replace(`${distPath}/`, '').replace(/\\/g, '/');
 
     if (output.kind === 'entry-point') {
+      // Match using full path including directory structure
+      // relativePath: "console/project/Settings.client-abc123.js"
+      // entryPath: "/full/path/src/pages/console/project/Settings.client.tsx"
+      // We need to match the directory structure + base name precisely
       const entryPath = entrypoints.find(ep => {
-        const name = basename(ep, '.client.tsx').toLowerCase();
-        return basename(relativePath).toLowerCase().startsWith(name);
+        // Extract directory structure from entryPath (e.g., "console/project/Settings")
+        const epRelative = ep.replace(/.*\/src\/pages\//, '').replace('.client.tsx', '');
+        // Extract from relativePath (e.g., "console/project/Settings" from "console/project/Settings.client-abc123.js")
+        const relativeBase = relativePath.replace(/\.client-[^.]+\.js$/, '');
+        return epRelative.toLowerCase() === relativeBase.toLowerCase();
       });
 
       if (entryPath) {
