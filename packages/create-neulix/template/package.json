@@ -12,7 +12,7 @@
     "docker": "docker build -t neulix-app . && docker run -p 8080:8080 neulix-app"
   },
   "dependencies": {
-    "neulix": "^0.1.2",
+    "neulix": "^0.1.15",
     "express": "^5.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
