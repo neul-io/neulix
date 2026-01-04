@@ -13,11 +13,11 @@ staticAssets(app);
 app.use('/api', api);
 
 app.get('/', async (_req: Request, res: Response) => {
-  res.send(await renderPage(pages.home));
+  res.send(await renderPage(pages.Home));
 });
 
 app.get('/docs', async (_req: Request, res: Response) => {
-  res.send(await renderPage(pages.docs));
+  res.send(await renderPage(pages.Docs));
 });
 
 // 404 handler

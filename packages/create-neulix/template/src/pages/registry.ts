@@ -3,11 +3,11 @@ import Docs from './Docs';
 import Home from './Home';
 
 export const pages = createPages({
-  home: {
+  Home: {
     component: Home,
     hydrate: true,
   },
-  docs: {
+  Docs: {
     component: Docs,
     hydrate: false,
   },

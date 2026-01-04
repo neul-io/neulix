@@ -20,6 +20,22 @@ async function findClientEntry(entryName: string): Promise<string | null> {
   if (existsSync(clientPath)) {
     return clientPath;
   }
+
+  // Fallback: search for case-insensitive match (for Linux compatibility)
+  const dir = entryName.includes('/') ? entryName.substring(0, entryName.lastIndexOf('/')) : '';
+  const baseName = entryName.includes('/') ? entryName.substring(entryName.lastIndexOf('/') + 1) : entryName;
+  const searchDir = resolve(process.cwd(), 'src/pages', dir);
+
+  if (existsSync(searchDir)) {
+    const glob = new Glob('*.client.tsx');
+    for await (const file of glob.scan(searchDir)) {
+      const fileBaseName = file.replace('.client.tsx', '');
+      if (fileBaseName.toLowerCase() === baseName.toLowerCase()) {
+        return resolve(searchDir, file);
+      }
+    }
+  }
+
   return null;
 }
 
@@ -91,6 +107,12 @@ export async function dev(options: DevOptions): Promise<void> {
           console.warn(`Warning: No .client.tsx file found for "${entryName}"`);
         }
       }
+    }
+
+    if (entrypoints.length === 0) {
+      console.log('No client entrypoints found (all pages are SSR-only)');
+      buildInProgress = false;
+      return;
     }
 
     try {
