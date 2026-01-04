@@ -37,6 +37,22 @@ async function findClientEntry(entryName: string): Promise<string | null> {
   if (existsSync(clientPath)) {
     return clientPath;
   }
+
+  // Fallback: search for case-insensitive match (for Linux compatibility)
+  const dir = entryName.includes('/') ? entryName.substring(0, entryName.lastIndexOf('/')) : '';
+  const baseName = entryName.includes('/') ? entryName.substring(entryName.lastIndexOf('/') + 1) : entryName;
+  const searchDir = resolve(process.cwd(), 'src/pages', dir);
+
+  if (existsSync(searchDir)) {
+    const glob = new Glob('*.client.tsx');
+    for await (const file of glob.scan(searchDir)) {
+      const fileBaseName = file.replace('.client.tsx', '');
+      if (fileBaseName.toLowerCase() === baseName.toLowerCase()) {
+        return resolve(searchDir, file);
+      }
+    }
+  }
+
   return null;
 }
 
@@ -111,67 +127,73 @@ export async function buildProduction(options: BuildOptions): Promise<void> {
     }
   }
 
-  console.log('Building client bundles...');
-
-  const result = (await build({
-    entrypoints,
-    outdir: 'dist',
-    root: 'src/pages',
-    naming: '[dir]/[name]-[hash].[ext]',
-    splitting: true,
-    minify: true,
-    target: 'browser',
-    format: 'esm',
-    sourcemap: 'none',
-    external: [],
-  })) as BunBuildOutput;
-
-  if (!result.success) {
-    console.error('Build errors:');
-    for (const log of result.logs) {
-      console.error(log.message);
-    }
-    throw new Error('Build failed');
-  }
-
   const manifest: BuildManifest = {};
   const chunks: string[] = [];
 
-  for (const output of result.outputs) {
-    // Get path relative to dist/ (e.g., "console/Users.client-abc123.js")
-    const relativePath = output.path.replace(`${distPath}/`, '').replace(/\\/g, '/');
+  // Only run Bun build if there are client entrypoints
+  if (entrypoints.length > 0) {
+    console.log('Building client bundles...');
 
-    if (output.kind === 'entry-point') {
-      // Match using full path including directory structure
-      // relativePath: "console/project/Settings.client-abc123.js"
-      // entryPath: "/full/path/src/pages/console/project/Settings.client.tsx"
-      // We need to match the directory structure + base name precisely
-      const entryPath = entrypoints.find(ep => {
-        // Extract directory structure from entryPath (e.g., "console/project/Settings")
-        const epRelative = ep.replace(/.*\/src\/pages\//, '').replace('.client.tsx', '');
-        // Extract from relativePath (e.g., "console/project/Settings" from "console/project/Settings.client-abc123.js")
-        const relativeBase = relativePath.replace(/\.client-[^.]+\.js$/, '');
-        return epRelative.toLowerCase() === relativeBase.toLowerCase();
-      });
+    const result = (await build({
+      entrypoints,
+      outdir: 'dist',
+      root: 'src/pages',
+      naming: '[dir]/[name]-[hash].[ext]',
+      splitting: true,
+      minify: true,
+      target: 'browser',
+      format: 'esm',
+      sourcemap: 'none',
+      external: [],
+    })) as BunBuildOutput;
 
-      if (entryPath) {
-        const entryName = entryNameMap.get(entryPath)!;
-        manifest[entryName] = {
-          js: relativePath,
-          css: cssFileName,
-        };
+    if (!result.success) {
+      console.error('Build errors:');
+      for (const log of result.logs) {
+        console.error(log.message);
       }
-    } else if (output.kind === 'chunk') {
-      chunks.push(relativePath);
+      throw new Error('Build failed');
     }
+
+    for (const output of result.outputs) {
+      // Get path relative to dist/ (e.g., "console/Users.client-abc123.js")
+      const relativePath = output.path.replace(`${distPath}/`, '').replace(/\\/g, '/');
+
+      if (output.kind === 'entry-point') {
+        // Match using full path including directory structure
+        // relativePath: "console/project/Settings.client-abc123.js"
+        // entryPath: "/full/path/src/pages/console/project/Settings.client.tsx"
+        // We need to match the directory structure + base name precisely
+        const entryPath = entrypoints.find(ep => {
+          // Extract directory structure from entryPath (e.g., "console/project/Settings")
+          const epRelative = ep.replace(/.*\/src\/pages\//, '').replace('.client.tsx', '');
+          // Extract from relativePath (e.g., "console/project/Settings" from "console/project/Settings.client-abc123.js")
+          const relativeBase = relativePath.replace(/\.client-[^.]+\.js$/, '');
+          return epRelative.toLowerCase() === relativeBase.toLowerCase();
+        });
+
+        if (entryPath) {
+          const entryName = entryNameMap.get(entryPath)!;
+          manifest[entryName] = {
+            js: relativePath,
+            css: cssFileName,
+          };
+        }
+      } else if (output.kind === 'chunk') {
+        chunks.push(relativePath);
+      }
+    }
+
+    if (chunks.length > 0) {
+      for (const entryName of Object.keys(manifest)) {
+        manifest[entryName].imports = chunks;
+      }
+    }
+  } else {
+    console.log('No client entrypoints found, skipping JavaScript bundling...');
   }
 
-  if (chunks.length > 0) {
-    for (const entryName of Object.keys(manifest)) {
-      manifest[entryName].imports = chunks;
-    }
-  }
-
+  // Add SSR-only pages to manifest (CSS only, no JS)
   for (const [entryName, config] of Object.entries(pages)) {
     if (!config.hydrate) {
       manifest[entryName] = {
